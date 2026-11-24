@@ -111,7 +111,9 @@ export function coreModelsView({
           'warning',
         )
       : '') +
-    `<p class="registry-note">${icon('shield')} ${shared ? 'Référentiel partagé enregistré dans Genesys · STUDIO_CORE_MODEL_RECORDS_V5.' : isDemo ? 'Référentiel fictif de démonstration.' : 'Référentiel non synchronisé avec Genesys.'}</p>`
+    (shared
+      ? ''
+      : `<p class="registry-note">${icon('shield')} ${isDemo ? 'Référentiel fictif de démonstration.' : 'Référentiel non synchronisé avec Genesys.'}</p>`)
   );
 }
 

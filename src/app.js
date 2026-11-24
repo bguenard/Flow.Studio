@@ -959,8 +959,8 @@ function shell(body) {
     )
     .join('')}</nav><div class="nav-label">ADMINISTRATION</div><nav>${[
     ['participantadmin', 'database'],
-    ['initialization', 'database'],
-    ['configuration', 'code'],
+    ['initialization', 'hash'],
+    ['configuration', 'grid'],
   ]
     .map(
       ([v, i]) =>
@@ -2034,7 +2034,7 @@ function diagnosticView() {
     notice(
       `${ui.snapshot.tables.length} tables · ${ui.snapshot.tables.reduce((n, t) => n + t.rows.length, 0)} lignes · ${plural(ui.inventory.issues.length, 'point')} à vérifier.`,
     ) +
-    `<section class="settings-panel"><h2>Points à vérifier</h2>${ui.inventory.issues.map((x) => `<p>${esc(x.message)}</p>`).join('') || '<p>Aucune référence manquante détectée.</p>'}</section><section class="settings-panel"><h2>Référentiel de gouvernance</h2><p>${plural(ui.registry.coreModels.length, 'Core Model')} · ${plural(ui.registry.declinations.length, 'déclinaison')} dans le référentiel du Studio${resolved().missing ? ` · ${plural(resolved().missing, 'entrée')} sans parcours dans la source courante` : ''}. ${ui.governance?.status === 'ready' ? 'Référentiel partagé dans Genesys · STUDIO_CORE_MODEL_RECORDS_V5.' : 'Référentiel Genesys non chargé.'}</p><details class="details"><summary>Contenu du référentiel</summary><pre>${esc(JSON.stringify(registryForExport(ui.registry), null, 2))}</pre></details></section><section class="settings-panel"><h2>Source lue</h2>${ui.snapshot.tables.map((t) => `<details class="details"><summary>${esc(t.name)} · ${t.rows.length} lignes</summary><pre>${esc(JSON.stringify(t.rows, null, 2))}</pre></details>`).join('')}</section>`
+    `<section class="settings-panel"><h2>Points à vérifier</h2>${ui.inventory.issues.map((x) => `<p>${esc(x.message)}</p>`).join('') || '<p>Aucune référence manquante détectée.</p>'}</section><section class="settings-panel"><h2>Référentiel de gouvernance</h2><p>${plural(ui.registry.coreModels.length, 'Core Model')} · ${plural(ui.registry.declinations.length, 'déclinaison')} dans le référentiel du Studio${resolved().missing ? ` · ${plural(resolved().missing, 'entrée')} sans parcours dans la source courante` : ''}${ui.governance?.status === 'ready' ? '.' : '. Référentiel Genesys non chargé.'}</p>${ui.governance?.status === 'ready' ? `<div class="page-actions">${btn('Relire le référentiel', 'governance-load', 'secondary small')}${btn('Exporter le référentiel Genesys', 'governance-export', 'secondary small')}</div>` : ''}<details class="details"><summary>Contenu du référentiel</summary><pre>${esc(JSON.stringify(registryForExport(ui.registry), null, 2))}</pre></details></section><section class="settings-panel"><h2>Source lue</h2>${ui.snapshot.tables.map((t) => `<details class="details"><summary>${esc(t.name)} · ${t.rows.length} lignes</summary><pre>${esc(JSON.stringify(t.rows, null, 2))}</pre></details>`).join('')}</section>`
   );
 }
 function cloneView() {
@@ -2111,6 +2111,7 @@ function render() {
     (ui.view !== 'flow' || ui.loading || ui.clone || ui.liveActivity.flow?.id !== current()?.id)
   )
     liveActivityController.stop();
+            ui.inventory?.flows || [],
   const liveViewport = $('#live-map-viewport'),
     liveScroll = { left: liveViewport?.scrollLeft || 0, top: liveViewport?.scrollTop || 0 };
   if (!ui.inventory && !ui.loading) ui.view = 'settings';
@@ -3022,6 +3023,10 @@ async function action(name, el) {
       if (hasLocalWork()) throw Error('Terminez vos brouillons avant de créer la table dédiée.');
       const divisionId = $('#initialization-division')?.value,
         client = initializationClient;
+    case 'initialization-edit':
+      openFlow(el.dataset.index);
+      await action('flow-data-open', el);
+      break;
       ui.initialization.error = '';
       ui.governanceBusy = true;
       render();

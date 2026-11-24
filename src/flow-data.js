@@ -256,11 +256,7 @@ export function prepareFlowData({
         targetFlowId: flowId,
         nodeCount: createdRows.length,
         mappings,
-        notices: [
-          'Valeurs stockées par numéro dans ' +
-            FLOW_INITIALIZATION +
-            '. Le flow Architect doit lire cette table pour les appliquer.',
-        ],
+        notices: [],
         localOnly: true,
       },
     };

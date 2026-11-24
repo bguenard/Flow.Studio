@@ -1,5 +1,3 @@
-import { FLOW_INITIALIZATION } from './flow-initialization.js';
-import { PARTICIPANT_CATALOGUE } from './participant-catalogue.js';
 import { renderParticipantValue } from './participant-value-control.js';
 import { esc, head, btn, icon, notice } from './ui-kit.js';
 import { humanText } from './business.js';
@@ -20,10 +18,12 @@ export function flowDataView(state, title, { catalogue, busy = false } = {}) {
       title,
       btn('Retour au parcours', 'flow-data-close', 'secondary'),
     ) +
-    notice(
-      `${model.dedicated ? 'Stockage par numéro : ' + FLOW_INITIALIZATION + ' · ' + model.entry.key + ' · ' + model.items.length + '/15 attributs.' : 'La table d’initialisation par numéro doit être créée.'} ${btn('Initialisation par numéro', 'initialization-open', 'secondary small')}<br>Architect doit lire la nouvelle table pour appliquer ces valeurs. Les anciennes affectations sont conservées jusqu’à la bascule du flow.`,
-      'warning',
-    );
+    (model.dedicated
+      ? ''
+      : notice(
+          `L’initialisation par numéro doit être activée avant d’enregistrer des valeurs. ${btn('Initialisation par numéro', 'initialization-open', 'secondary small')}`,
+          'warning',
+        ));
   const options = model.options.filter((o) => o.catalogued);
   const cataloguePanel =
     catalogue?.status === 'missing'
@@ -34,7 +34,7 @@ export function flowDataView(state, title, { catalogue, busy = false } = {}) {
       : catalogue?.status === 'error'
         ? `<section class="flow-data-card flow-catalogue-panel" role="alert"><h2>Catalogue indisponible</h2><p>${esc(catalogue.error)}</p>${btn('Réessayer', 'participant-catalogue-reload', 'secondary')}${adminLink}</section>`
         : model.catalogue
-          ? `<div class="flow-catalogue-source">Catalogue partagé Genesys · ${PARTICIPANT_CATALOGUE} · ${model.catalogue.rows.length} donnée(s) ${adminLink}<br>Les types et les choix autorisés sont définis par votre administrateur.</div>`
+          ? `<div class="flow-catalogue-source">Catalogue partagé · ${model.catalogue.rows.length} donnée${model.catalogue.rows.length > 1 ? 's' : ''} ${adminLink}<br>Les types et les choix autorisés sont définis par votre administrateur.</div>`
           : `<div class="flow-catalogue-source">Les définitions du catalogue sont nécessaires pour ajouter ou modifier une donnée. ${adminLink}</div>`;
   if (review)
     return (
@@ -47,7 +47,7 @@ export function flowDataView(state, title, { catalogue, busy = false } = {}) {
         )
         .join(
           '',
-        )}${additions.map((a) => `<p><strong>${esc(nameLabel(a.name))}</strong><span>Valeur initiale : ${esc(a.value || '(vide)')}</span></p>`).join('')}</div><p class="helper">Après publication, ces valeurs seront disponibles dans la table dédiée. Leur application pendant l’appel nécessite le lecteur Architect de cette table. Les définitions du catalogue et les valeurs des autres parcours sont conservées.</p>${error}<div class="flow-data-actions">${btn('Modifier', 'flow-data-edit', 'secondary')}${btn('Enregistrer le brouillon', 'flow-data-save', 'primary', review.createdRows.length + review.updatedRows.length ? '' : 'disabled')}</div></section>`
+        )}${additions.map((a) => `<p><strong>${esc(nameLabel(a.name))}</strong><span>Valeur initiale : ${esc(a.value || '(vide)')}</span></p>`).join('')}</div><p class="helper">Les valeurs des autres parcours ne sont pas modifiées.</p>${error}<div class="flow-data-actions">${btn('Modifier', 'flow-data-edit', 'secondary')}${btn('Enregistrer le brouillon', 'flow-data-save', 'primary', review.createdRows.length + review.updatedRows.length ? '' : 'disabled')}</div></section>`
     );
   return (
     intro +
@@ -84,6 +84,6 @@ export function flowDataView(state, title, { catalogue, busy = false } = {}) {
    })
    .join('')}
  <div class="flow-data-actions">${btn(icon('plus') + ' Ajouter une donnée du catalogue', 'flow-data-add', 'secondary', !options.length || busy || model.items.length + additions.length >= 15 ? 'disabled' : '')}</div><p class="helper">Les choix proposés respectent le type de la donnée. Une valeur vide et « Non » sont deux valeurs différentes.</p>${error}<div class="flow-data-actions">${btn('Vérifier les modifications', 'flow-data-review', 'primary')}</div></section>
- <aside class="flow-data-card"><div class="flow-data-heading">${icon('phone')}<div><h2>Données utilisées pendant l’appel</h2><p>Attributs évalués par les conditions de ce parcours.</p></div></div>${model.used.length ? model.used.map((name) => `<article class="flow-data-usage"><strong>${esc(nameLabel(name))}</strong><span>${model.runtime.includes(name) ? 'Non initialisé à l’entrée · origine à vérifier dans les étapes, le bot ou le CRM.' : 'Valeur initialisée à l’entrée du parcours.'}</span></article>`).join('') : '<p>Aucun attribut évalué par une condition dans ce parcours.</p>'}<p class="helper">Une donnée absente de l’initialisation peut être renseignée plus tard. Cet écran ne prouve pas qu’elle sera disponible sur chaque chemin.</p><div class="flow-data-note"><strong>Quand est-ce appliqué ?</strong><p>Après publication des valeurs, Architect doit rechercher le numéro exact dans STUDIO_PARCOURS_INIT_V5 et affecter chaque nom/valeur avant la première condition. Les données renseignées plus tard dans l’appel restent dans leurs configurations actuelles.</p></div></aside></div>`
+ <aside class="flow-data-card"><div class="flow-data-heading">${icon('phone')}<div><h2>Données utilisées pendant l’appel</h2><p>Attributs évalués par les conditions de ce parcours.</p></div></div>${model.used.length ? model.used.map((name) => `<article class="flow-data-usage"><strong>${esc(nameLabel(name))}</strong><span>${model.runtime.includes(name) ? 'Non initialisé à l’entrée · origine à vérifier dans les étapes, le bot ou le CRM.' : 'Valeur initialisée à l’entrée du parcours.'}</span></article>`).join('') : '<p>Aucun attribut évalué par une condition dans ce parcours.</p>'}</aside></div>`
   );
 }

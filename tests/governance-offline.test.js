@@ -46,3 +46,30 @@ test('with the shared registry, declaration and creation remain available and th
   assert.ok(html.indexOf('<h1') < html.indexOf('registry-banner'));
   assert.ok(html.indexOf('registry-banner') < html.indexOf('Parcours à classer'));
 });
+
+test('a working shared registry shows no status block; it only speaks when something needs attention', () => {
+  const records = [{ STATUS: 'active', DIVISION: 'G2S' }];
+  assert.equal(governanceSettingsView({ status: 'ready', records }), '');
+  const pending = governanceSettingsView({
+    status: 'ready',
+    records,
+    pending: { error: 'Écriture <refusée>' },
+  });
+  assert.ok(pending.includes('Écriture &lt;refusée&gt;'));
+  for (const action of [
+    'governance-retry',
+    'governance-pending-export',
+    'governance-pending-discard',
+  ])
+    assert.match(pending, new RegExp(`data-action="${action}"`));
+  const failed = governanceSettingsView({ status: 'ready', records, error: 'Lecture interrompue' });
+  assert.ok(failed.includes('Lecture interrompue'));
+  assert.match(failed, /data-action="governance-load"/);
+  for (const html of [pending, failed, governanceSettingsView({ status: 'missing' })])
+    assert.doesNotMatch(html, /STUDIO_CORE_MODEL_RECORDS_V5|lignes · Divisions|tables d’exécution/);
+});
+
+test('the Core Models page does not name the storage table', () => {
+  assert.doesNotMatch(page({ shared: true }), /STUDIO_CORE_MODEL_RECORDS_V5|registry-note/);
+  assert.match(page({ shared: false }), /registry-note/);
+});

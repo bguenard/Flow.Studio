@@ -32,3 +32,24 @@ test('background loading is one quiet line; only a failed load gets a framed not
   assert.doesNotMatch(rule('.source-loading-status'), /background|border/);
   assert.match(rule('.source-loading-status.failed'), /background/);
 });
+
+test('each sidebar entry has its own icon, and every icon exists', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { icons } = await import('../src/ui-kit.js');
+  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const start = app.indexOf('function shell(body)'),
+    shell = app.slice(start, app.indexOf('\n}\n', start));
+  const names = [
+    // One entry per line: [view, icon].
+    ...[...shell.matchAll(/^\s+\['\w+', '(\w+)'\],$/gm)].map((match) => match[1]),
+    ...[...shell.matchAll(/icon\('(\w+)'\)/g)]
+      .map((match) => match[1])
+      .filter((name) => name !== 'chevron'),
+  ];
+  assert.equal(names.length, 9);
+  assert.deepEqual(
+    names.filter((name, index) => names.indexOf(name) !== index),
+    [],
+  );
+  for (const name of names) assert.ok(icons[name], name);
+});

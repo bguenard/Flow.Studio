@@ -12,6 +12,7 @@ import {
   validateParticipantDefinitionChange,
 } from '../src/participant-catalogue.js';
 import { flowDataModel, prepareFlowData } from '../src/flow-data.js';
+import { flowDataView } from '../src/flow-data-view.js';
 import { publicationRows } from '../src/publication.js';
 import { publicationPreflight } from '../src/publication-preflight.js';
 const schema = (names) => ({
@@ -175,6 +176,11 @@ test('entry editor changes dedicated row only, not WOLF refs or branch context',
   assert.equal(plan.updatedRows[0].node.tableId, 'init');
   assert.equal(plan.updatedRows[0].row.ATTRIBUTE_01_VALUE, 'false');
   assert.deepEqual(s, before);
+  assert.deepEqual(plan.summary.notices, []);
+  const technical = /Architect|Stockage par numéro|STUDIO_PARCOURS_INIT_V5|class="notice/;
+  const state = { model: m, values: {}, additions: [] };
+  assert.doesNotMatch(flowDataView(state, 'Accueil'), technical);
+  assert.doesNotMatch(flowDataView({ ...state, review: plan }, 'Accueil'), technical);
   const row = plan.updatedRows[0],
     drafts = new Map([[row.node.id, { original: row.node.row, row: row.row }]]),
     entries = publicationRows(s, drafts);

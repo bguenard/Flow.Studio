@@ -28,6 +28,7 @@ export const icons = {
   menu: '<path d="M7 5h14M7 12h14M7 19h14M3 5h.1M3 12h.1M3 19h.1"/>',
   message:
     '<path d="M21 15a3 3 0 0 1-3 3H8l-6 4V5a3 3 0 0 1 3-3h13a3 3 0 0 1 3 3Z"/><path d="M7 7h10M7 12h7"/>',
+  hash: '<path d="M9.5 3 7 21M17 3l-2.5 18M4.5 8.5h16M3.5 15.5h16"/>',
   globe:
     '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
   undo: '<path d="M3 3v6h6M3 9a9 9 0 1 1 0 7"/>',

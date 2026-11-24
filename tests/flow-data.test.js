@@ -289,7 +289,13 @@ test('page shows boolean switches, calculated values and review rather than publ
   assert.match(html, /role="switch"/);
   assert.match(html, /Valeur calculée/);
   assert.match(html, /Vérifier les modifications/);
-  assert.match(html, /après publication/i);
+  assert.match(html, /data-action="initialization-open"/);
+  const technical = /Architect|bascule du flow|Quand est-ce appliqué|ne prouve pas|lecteur/;
+  assert.doesNotMatch(html, technical);
+  assert.doesNotMatch(
+    flowDataView({ ...state, review: plan(typedSetup()) }, 'Mon parcours'),
+    technical,
+  );
   assert.doesNotMatch(html, /data-action="publication-publish"/);
 });
 

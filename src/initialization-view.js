@@ -1,41 +1,40 @@
-import {
-  FLOW_INITIALIZATION,
-  FLOW_INITIALIZATION_LIMIT,
-  initializationAttributes,
-} from './flow-initialization.js';
+import { FLOW_INITIALIZATION_LIMIT, initializationAttributes } from './flow-initialization.js';
 import { esc, head, btn, notice } from './ui-kit.js';
 
-function renderAttributes(row) {
-  const attributes = initializationAttributes(row);
-  if (!attributes.length) return '<span class="muted">Aucun attribut</span>';
-  return `<details class="initialization-details">
-    <summary>${attributes.length}/${FLOW_INITIALIZATION_LIMIT} attribut${attributes.length > 1 ? 's' : ''}</summary>
-    <dl class="initialization-values">
-      ${attributes
-        .map(
-          (attribute) => `<div>
-        <dt><code>${esc(attribute.name)}</code> <span>${esc(attribute.type)}</span></dt>
-        <dd>${esc(attribute.value === '' ? '(vide)' : attribute.value)}</dd>
-      </div>`,
-        )
-        .join('')}
-    </dl>
-  </details>`;
+/** Numéro appelé → position du parcours dans l'inventaire, pour ouvrir ses données depuis la liste. */
+function journeysByNumber(flows) {
+  const journeys = new Map();
+  flows.forEach((flow, index) => {
+    const number = flow.nodes?.find((node) => node.id === flow.id)?.key;
+    if (number && !journeys.has(number)) journeys.set(number, index);
+  });
+  return journeys;
 }
 
-function renderRows(rows) {
+function renderValues(row) {
+  const attributes = initializationAttributes(row);
+  if (!attributes.length) return '<span class="initialization-none">Aucune donnée</span>';
+  return `<dl class="initialization-values">${attributes
+    .map(
+      (attribute) =>
+        `<div><dt>${esc(attribute.name)}</dt> ${attribute.value === '' ? '<dd class="empty">Vide</dd>' : `<dd${attribute.value.length > 30 ? ` title="${esc(attribute.value)}"` : ''}>${esc(attribute.value)}</dd>`}</div>`,
+    )
+    .join('')}</dl>`;
+}
+
+function renderRows(rows, journeys) {
   if (!rows.length)
-    return '<p class="helper">Aucun numéro enregistré. Ajoutez ses valeurs depuis Données du parcours.</p>';
+    return '<p class="initialization-empty">Aucun numéro enregistré. Les valeurs se renseignent dans chaque parcours, depuis « Données du parcours ».</p>';
   return `<div class="initialization-table-wrap">
-    <table class="initialization-table">
-      <caption class="sr-only">Valeurs initiales enregistrées par numéro</caption>
-      <thead><tr><th scope="col">Numéro exact</th><th scope="col">Division</th><th scope="col">Attributs</th></tr></thead>
+    <table class="initialization-table" aria-label="Données à l’entrée de l’appel, par numéro">
+      <thead><tr><th scope="col">Numéro appelé</th><th scope="col">Division</th><th scope="col">Données à l’entrée de l’appel</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
       <tbody>${rows
         .map(
           (row) => `<tr>
-        <td>${esc(row.key)}${row.DESCRIPTION ? `<small class="initialization-description">${esc(row.DESCRIPTION)}</small>` : ''}</td>
-        <td>${esc(row.DIVISION || 'Non renseignée')}</td>
-        <td>${renderAttributes(row)}</td>
+        <th scope="row"><span class="initialization-number">${esc(row.key)}</span>${row.DESCRIPTION ? `<span class="initialization-description">${esc(row.DESCRIPTION)}</span>` : ''}</th>
+        <td>${row.DIVISION ? esc(row.DIVISION) : '<span class="initialization-none">Non renseignée</span>'}</td>
+        <td>${renderValues(row)}</td>
+        <td class="initialization-action">${journeys.has(row.key) ? btn('Modifier', 'initialization-edit', 'secondary small', `data-index="${journeys.get(row.key)}" aria-label="Modifier les données du ${esc(row.key)}"`) : ''}</td>
       </tr>`,
         )
         .join('')}</tbody>
@@ -43,41 +42,41 @@ function renderRows(rows) {
   </div>`;
 }
 
-function renderTable(result, divisions, busy) {
-  if (result.status === 'error') return notice(esc(result.error), 'warning');
-  if (result.status === 'missing')
-    return `<div class="field initialization-setup">
-    <label for="initialization-division">Division de la nouvelle table</label>
-    <select id="initialization-division" ${busy ? 'disabled' : ''}>
-      <option value="">Choisir une division…</option>
-      ${divisions.map((division) => `<option value="${esc(division.id)}" ${division.name === 'G2S' ? 'selected' : ''}>${esc(division.name)}</option>`).join('')}
-    </select>
+function renderSetup(divisions, busy) {
+  return `<section class="flow-data-card initialization-setup">
+    <h2>Activer l’initialisation par numéro</h2>
+    <div class="field">
+      <label for="initialization-division">Division de la nouvelle table</label>
+      <select id="initialization-division" ${busy ? 'disabled' : ''}>
+        <option value="">Choisir une division…</option>
+        ${divisions.map((division) => `<option value="${esc(division.id)}" ${division.name === 'G2S' ? 'selected' : ''}>${esc(division.name)}</option>`).join('')}
+      </select>
+    </div>
     ${btn('Créer la table dédiée', 'initialization-create', 'primary', busy ? 'disabled' : '')}
-  </div>`;
-  if (result.status !== 'ready') return '<p role="status">Lecture de la table…</p>';
-  const rows = result.table.rows;
-  return `<p>${rows.length} numéro(s) enregistré(s). Pour modifier les valeurs, ouvrez <strong>Données du parcours</strong> dans le parcours concerné.</p>${renderRows(rows)}`;
+  </section>`;
 }
 
-/** Read-only overview; row changes follow the journey's normal publication workflow. */
-export function initializationView(state = {}, divisions = [], busy = false) {
+function renderResult(result, divisions, busy, journeys) {
+  if (result.status === 'error') return notice(esc(result.error), 'warning');
+  if (result.status === 'missing') return renderSetup(divisions, busy);
+  if (result.status !== 'ready')
+    return '<p class="initialization-empty" role="status">Lecture des numéros…</p>';
+  const rows = result.table.rows;
+  return `<div class="section-heading"><h2>Numéros enregistrés <span class="journey-count">${rows.length} numéro${rows.length > 1 ? 's' : ''}</span></h2></div>${renderRows(rows, journeys)}`;
+}
+
+/** Vue d'ensemble en lecture : les valeurs se modifient dans chaque parcours et suivent sa publication. */
+export function initializationView(state = {}, divisions = [], busy = false, flows = []) {
   return (
     head(
       'ADMINISTRATION',
       'Initialisation par numéro',
-      `${FLOW_INITIALIZATION_LIMIT} attributs maximum · nom, type et valeur`,
+      `Données renseignées dès l’entrée de l’appel, selon le numéro appelé · ${FLOW_INITIALIZATION_LIMIT} au maximum par numéro.`,
       btn('Actualiser', 'initialization-open', 'secondary', busy ? 'disabled' : ''),
     ) +
-    `
-    <section class="flow-data-card initialization-overview">
-      <h2>Valeurs enregistrées</h2>
-      <p class="helper"><code>${FLOW_INITIALIZATION}</code></p>
-      ${renderTable(state.result || {}, divisions, busy)}
+    `<section class="initialization-overview">
+      ${renderResult(state.result || {}, divisions, busy, journeysByNumber(flows))}
       ${state.error ? `<div class="error-box" role="alert" tabindex="-1">${esc(state.error)}</div>` : ''}
-    </section>
-    <section class="flow-data-card initialization-runtime">
-      <h2>Application pendant l’appel</h2>
-      <p>Architect doit lire la ligne du numéro appelé et affecter les attributs avant la première condition. L’enregistrement de ces valeurs ne publie pas le flow Architect.</p>
     </section>`
   );
 }
