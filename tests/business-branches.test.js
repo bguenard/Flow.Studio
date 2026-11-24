@@ -133,7 +133,7 @@ test('business destination editor keeps technical suffixes without exposing raw-
   };
   const html = stepFieldView(field, 1, { node: n, snapshot });
   assert.match(html, /value="team\|pdata:context"/);
-  assert.match(html, />Conseil clients<\/option>/);
+  assert.match(html, />team · Conseil clients<\/option>/);
   assert.doesNotMatch(html, /Modifier les paramètres WOLF|field-source-key/);
   assert.match(
     stepFieldView(field, 1, { node: n, snapshot, admin: true }),

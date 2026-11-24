@@ -5079,9 +5079,16 @@ document.addEventListener('change', (event) => {
   }
   if (
     event.target.matches('.node-form [data-field]') &&
-    /(^|_)TARGET_TYPE(?:_\d+)?$/.test(event.target.dataset.field)
-  )
+    /(^|_)TARGET(?:_TYPE)?(?:_\d+)?$/.test(event.target.dataset.field)
+  ) {
+    const node = current()?.nodes[ui.node];
+    if (node) {
+      const pending = ui.pendingFields.get(node.id) || {};
+      pending[event.target.dataset.field] = event.target.value;
+      ui.pendingFields.set(node.id, pending);
+    }
     render();
+  }
 });
 
 document.addEventListener('visibilitychange', () => {

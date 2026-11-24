@@ -108,35 +108,60 @@ export function stepFieldView(
       .map((value) => ({ value, label: decisionOperatorLabels[value] || value }));
   if (field.kind === 'local-reference') options = referenceOptions(field.localTable, snapshot);
   const composite = field.kind === 'route-type' || field.kind === 'route-target';
+  let unavailableValueLabel = 'valeur actuelle',
+    emptyOptionLabel = field.required ? 'Choisir…' : 'Non renseigné';
   if (composite) {
-    const extras = text(value).split('|').slice(1),
+    const [base, ...extras] = text(value).split('|'),
       suffix = extras.length ? '|' + extras.join('|') : '';
-    if (field.kind === 'route-type')
-      options = Object.entries(routeLabelsFor(node)).map(([value, label]) => ({
-        value: value + suffix,
+    if (field.kind === 'route-type') {
+      options = Object.entries(routeLabelsFor(node)).map(([type, label]) => ({
+        // Recognize BOT / bot alike without rewriting an existing WOLF value.
+        value: type === base.trim().toLowerCase() ? text(value) : type + suffix,
         label,
       }));
-    else {
+      helper =
+        'Choisissez le type de la prochaine étape. La liste des destinations dépend de ce choix.';
+    } else {
       const route = text(pending[field.targetTypeKey] ?? node.row[field.targetTypeKey])
-        .split('|')[0]
-        .toLowerCase();
-      if (targetTablesFor(node)[route])
-        options = referenceOptions(targetTablesFor(node)[route], snapshot).map((o) => ({
-          ...o,
-          label: admin
-            ? o.label
-            : o.label.endsWith(' · ' + o.value)
-              ? o.label.slice(0, -(' · ' + o.value).length)
-              : o.label,
+          .split('|')[0]
+          .trim()
+          .toLowerCase(),
+        tableName = targetTablesFor(node)[route];
+      helper = 'Choisissez sa destination. Les paramètres associés sont conservés.';
+      if (tableName) {
+        const tables = (snapshot?.tables || []).filter(
+          (t) => t.name.toUpperCase() === tableName.toUpperCase(),
+        );
+        options = referenceOptions(tableName, snapshot).map((o) => ({
           value: o.value + suffix,
+          label: o.label.endsWith(' · ' + o.value)
+            ? o.value + ' · ' + o.label.slice(0, -(' · ' + o.value).length)
+            : o.value,
         }));
-      else if (['disconnect', 'next', 'enable', 'disable'].includes(route)) options = [];
-      else options = undefined;
+        emptyOptionLabel = 'Choisir une destination…';
+        helper =
+          tables.length !== 1
+            ? `La table ${tableName} est ${tables.length ? 'ambiguë' : 'absente de la source chargée'}. Rechargez les données pour choisir une destination.`
+            : !options.length
+              ? `Aucune destination disponible dans ${tableName}. Ajoutez une configuration dans cette table, puis actualisez les données.`
+              : `Clés exactes de ${tableName}. Les paramètres associés sont conservés.`;
+        unavailableValueLabel = 'référence à vérifier';
+        if (base && !options.some((o) => o.value === text(value)))
+          helper += ` La référence actuelle « ${base} » ne figure pas dans cette liste : sélectionnez une clé exacte.`;
+      } else if (!route || ['disconnect', 'next', 'enable', 'disable'].includes(route)) {
+        options = [];
+        emptyOptionLabel = route ? 'Aucune destination nécessaire' : 'Choisissez d’abord le type';
+        helper = route
+          ? 'Cette action ne nécessite pas de destination.'
+          : 'Choisissez le type de la prochaine étape pour afficher ses destinations.';
+        unavailableValueLabel = 'incompatible avec ce type';
+      } else if (!Object.hasOwn(routeLabelsFor(node), route)) {
+        options = [];
+        emptyOptionLabel = 'Choisissez un type reconnu';
+        helper = 'Le type de destination doit être reconnu avant de choisir sa destination.';
+        unavailableValueLabel = 'référence à vérifier';
+      } else options = undefined; // External destinations (phone, user...) keep their editor.
     }
-    helper =
-      field.kind === 'route-type'
-        ? 'Choisissez le type de la prochaine étape.'
-        : 'Choisissez sa destination. Les paramètres associés sont conservés.';
     if (advanced && admin) {
       options = undefined;
       helper =
@@ -176,7 +201,7 @@ export function stepFieldView(
     });
   else if (options) {
     const normalized = field.kind === 'boolean' ? text(value).toLowerCase() : text(value);
-    control = `<select ${attrs}><option value=""${selected(normalized, '')}>${field.required ? 'Choisir…' : 'Non renseigné'}</option>${normalized && !options.some((o) => String(o.value) === normalized) ? `<option value="${esc(normalized)}" selected disabled>${esc(normalized)} · valeur actuelle</option>` : ''}${options.map((o) => `<option value="${esc(o.value)}"${selected(normalized, o.value)} ${o.disabled ? 'disabled' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+    control = `<select ${attrs}><option value=""${selected(normalized, '')}>${esc(emptyOptionLabel)}</option>${normalized && !options.some((o) => String(o.value) === normalized) ? `<option value="${esc(normalized)}" selected disabled>${esc(normalized)} · ${esc(unavailableValueLabel)}</option>` : ''}${options.map((o) => `<option value="${esc(o.value)}"${selected(normalized, o.value)} ${o.disabled ? 'disabled' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
   } else if (
     ['pdata', 'controls', 'json', 'audio', 'message', 'list'].includes(field.kind) ||
     (composite && advanced)
