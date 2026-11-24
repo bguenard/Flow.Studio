@@ -1,3 +1,4 @@
+import { isMessageNode } from './media-profiles.js';
 /** GET-only catalogues. WOLF references use names, not the API object's id. */
 import { GENESYS_API_ORIGIN } from './genesys-direct.js';
 
@@ -27,7 +28,7 @@ const audioKey = (key) =>
 
 /** Only fields whose V5 lookup contract is known; row identities are never renamed. */
 export function resourceForField(key, node) {
-  if (!/_v5$/i.test(node?.tableName || '')) return null;
+  if (!/_v5$/i.test(node?.tableName || '') && !isMessageNode(node)) return null;
   const name = key.toUpperCase();
   const types = {
     DIVISION: 'divisions',
@@ -39,6 +40,7 @@ export function resourceForField(key, node) {
     SKILLS: 'skills',
     LANGUAGE_SKILL: 'languages',
     DIRECT_USER: 'users',
+    DIRECT_ROUTING_AGENT: 'users',
     FLOW_NAME: 'flows',
     SCRIPT: 'scripts',
     ID_BOT: 'bots',

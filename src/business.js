@@ -1,9 +1,10 @@
-import { v5FieldPolicy, isV5 } from './v5-fields.js';
+import { MESSAGE_LABELS, isMessageNode, messageEditorValue } from './media-profiles.js';
+import { v5FieldPolicy, isEditableWolf as isV5 } from './v5-fields.js';
 import {
   decisionFields,
   decisionOperators,
   decisionOperatorLabels,
-  isV5Decision,
+  isWolfDecision as isV5Decision,
 } from './decision-fields.js';
 import { resourceForField } from './genesys-resources.js';
 import { fieldLabel, isCopyableField, isIdentityField } from './draft-fields.js';
@@ -15,6 +16,11 @@ const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const TYPE_TITLES = new Map(
   Object.entries({
     inboundcall: 'Accueil téléphonique',
+    segment: 'Accueil de la conversation',
+    quickreplies: 'Choix par boutons',
+    carousel: 'Carrousel',
+    card: 'Carte',
+    waitforinput: 'Question ouverte',
     service: 'Équipe de traitement',
     schedulegroup: 'Horaires de disponibilité',
     menu: 'Choix proposés au client',
@@ -40,6 +46,7 @@ const TYPE_TITLES = new Map(
 const SECTIONS = new Map(
   Object.entries({
     inboundcall: 'accueil',
+    segment: 'accueil',
     schedulegroup: 'horaires',
     menu: 'orientation',
     decision: 'orientation',
@@ -255,7 +262,7 @@ export function flowTitle(flow) {
   }
   return (
     humanText(nonempty(description) ? description : flow?.name || flow?.key || flow?.dnis) ||
-    'Parcours vocal'
+    'Parcours'
   );
 }
 
@@ -469,19 +476,30 @@ export function businessFields(node) {
         ...(decision && name === 'DECISION_OPERATOR'
           ? { options: decisionOperators, optionLabels: decisionOperatorLabels }
           : {}),
-        editorValue: name === 'DESCRIPTION' ? nodeTitle(node) : undefined,
+        editorValue:
+          name === 'DESCRIPTION'
+            ? isMessageNode(node) && node.type === 'card'
+              ? value
+              : nodeTitle(node)
+            : undefined,
         label:
           name === 'DESCRIPTION'
-            ? 'Nom du parcours ou de l’étape'
+            ? isMessageNode(node) && node.type === 'card'
+              ? 'Texte de la carte affiché au client'
+              : 'Nom du parcours ou de l’étape'
             : name === 'SUBROUTINES_LIST'
               ? 'Contrôles automatiques au démarrage'
               : fieldLabel(name),
         section: sectionForField(name, node),
         value: clone(value),
         display:
-          decision && name === 'DECISION_OPERATOR'
-            ? decisionOperatorLabels[value] || describeValue(name, value)
-            : describeValue(name, value),
+          kind === 'message'
+            ? messageEditorValue(value)
+            : isMessageNode(node) && kind === 'route-type'
+              ? MESSAGE_LABELS[String(value || '').split('|')[0]] || describeValue(name, value)
+              : decision && name === 'DECISION_OPERATOR'
+                ? decisionOperatorLabels[value] || describeValue(name, value)
+                : describeValue(name, value),
         editable: Boolean(editable),
         copyable: name !== 'DESCRIPTION' && name !== 'MENU_AUDIO' && isCopyableField(name, value),
         kind,
@@ -512,6 +530,8 @@ export function branchLabel(edge) {
     ['BYPASS', 'Si cette étape est contournée'],
     ['INQUEUE', 'Après l’attente'],
     ['NO_MATCH', 'Sans résultat du bot'],
+    ['NOMATCH', 'Réponse non reconnue'],
+    ['NOINPUT', 'Sans réponse du client'],
     ['NO_INPUT', 'Sans réponse au bot'],
     ['LOWER_BOUND', 'Sous la borne basse'],
     ['BETWEEN_BOUND', 'Entre les bornes'],
@@ -563,7 +583,8 @@ export function flowRoutes(flow) {
       : edge.dynamic
         ? dynamicTitle
         : edge.terminal
-          ? TYPE_TITLES.get(type) || 'Fin de cette branche'
+          ? (flow.media === 'messaging' ? MESSAGE_LABELS[type] : TYPE_TITLES.get(type)) ||
+            'Fin de cette branche'
           : 'Destination à vérifier';
     if (!edge.dynamic && edge.terminal && type === 'number' && nonempty(edge.target))
       toTitle = `Transfert vers ${humanText(edge.target)}`;

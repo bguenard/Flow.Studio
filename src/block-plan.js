@@ -1,5 +1,5 @@
 /** Local, atomic preparation of selected block insertions. No UI or remote state. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { blockInsertionOptions, prepareBlockInsertion } from './block-insertion.js';
 
 const errorFor = (id, message) => ({ id, sourceNodeId: id, message });
@@ -97,7 +97,7 @@ export function prepareBlockPlan({
     }
     if (errors.length) return rejected(plans, errors);
 
-    const initialInventory = buildVoiceInventory(initial);
+    const initialInventory = buildJourneyInventory(initial);
     const baselineNodes = new Map(
       initialInventory.flows.flatMap((flow) => flow.nodes.map((node) => [node.id, node])),
     );
@@ -109,7 +109,7 @@ export function prepareBlockPlan({
     for (const candidate of candidates) {
       const decision = decisionsById.get(candidate.id);
       if (decision?.mode !== 'insert') continue;
-      const inventory = buildVoiceInventory(projected);
+      const inventory = buildJourneyInventory(projected);
       const currentLeft = inventory.flows.find((flow) => flow.id === left?.id);
       const currentRight = inventory.flows.find((flow) => flow.id === right?.id);
       if (!currentLeft || !currentRight) {

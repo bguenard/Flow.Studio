@@ -21,14 +21,19 @@ import {
 } from './participant-names.js';
 /** Controlled V5 row writer. No automatic retries for remote mutations. */
 import { GENESYS_API_ORIGIN } from './genesys-direct.js';
-import { isWolfV5VoiceTable } from './wolf-scope.js';
+import { isStudioTable } from './wolf-scope.js';
 import {
   loadResourceCatalogue,
   resourceForField,
   validateResourceChoice,
 } from './genesys-resources.js';
 import { coerceRowValue } from './draft-fields.js';
-import { targetTables, routeTargetKey, localReferenceTable } from './v5-fields.js';
+import {
+  targetTablesFor,
+  participantTableFor,
+  routeTargetKey,
+  localReferenceTable,
+} from './v5-fields.js';
 export const stable = (value) =>
   JSON.stringify(value, (_, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
@@ -64,11 +69,12 @@ function createdDependencies(entry, snapshot, created) {
         .trim()
         .toLowerCase();
       const [target, ...extras] = String(row[routeTargetKey(field, row)] || '').split('|');
-      add(targetTables[type], target);
+      add(targetTablesFor({ tableName: entry.table })[type], target);
       for (const extra of extras)
         if (/^pdata:/i.test(extra))
-          for (const key of extra.slice(6).split(';')) add('W_PARTICIPANT_DATA_V5', key);
-    } else add(localReferenceTable(field), String(value || ''));
+          for (const key of extra.slice(6).split(';'))
+            add(participantTableFor({ tableName: entry.table }), key);
+    } else add(localReferenceTable(field, { tableName: entry.table, row }), String(value || ''));
   }
   if (/^W_INBOUND_CALL_v5$/i.test(entry.table)) add(FLOW_INITIALIZATION, entry.key);
   if (entry.table === FLOW_INITIALIZATION)
@@ -87,7 +93,7 @@ export function orderPublicationEntries(entries) {
     visiting.add(entry.id);
     for (const id of entry.requiresCreatedRows || []) {
       const dependency = byId.get(id);
-      if (dependency?.kind === 'create' && !/INBOUND_CALL/i.test(dependency.table))
+      if (dependency?.kind === 'create' && !/INBOUND_(CALL|MESSAGE)/i.test(dependency.table))
         visit(dependency);
     }
     visiting.delete(entry.id);
@@ -96,7 +102,11 @@ export function orderPublicationEntries(entries) {
   };
   const creations = entries
     .filter((entry) => entry.kind === 'create')
-    .sort((a, b) => Number(/INBOUND_CALL/i.test(a.table)) - Number(/INBOUND_CALL/i.test(b.table)));
+    .sort(
+      (a, b) =>
+        Number(/INBOUND_(CALL|MESSAGE)/i.test(a.table)) -
+        Number(/INBOUND_(CALL|MESSAGE)/i.test(b.table)),
+    );
   for (const entry of creations) visit(entry);
   for (const entry of entries) visit(entry);
   return ordered;
@@ -481,7 +491,7 @@ export function createPublicationClient(
       const entry = copy(candidate);
       for (const key of ['status', 'verifiedAt', 'error', 'observed']) delete entry[key];
       if (
-        (!isWolfV5VoiceTable(entry.table) &&
+        (!isStudioTable(entry.table) &&
           !isParticipantCatalogue(entry.table) &&
           entry.table !== FLOW_INITIALIZATION) ||
         !entry.tableId ||
@@ -489,7 +499,7 @@ export function createPublicationClient(
         ids.has(entry.id) ||
         entry.id !== `${entry.tableId}:${entry.key}`
       )
-        throw Error('Ligne hors périmètre V5 ou identité dupliquée.');
+        throw Error('Ligne hors périmètre WOLF ou identité dupliquée.');
       if (
         !['create', 'update'].includes(entry.kind) ||
         entry.after.key !== entry.key ||

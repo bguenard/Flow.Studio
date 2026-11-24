@@ -1,5 +1,7 @@
+import { MESSAGE_ROUTE_TABLES, MESSAGE_LABELS } from './media-profiles.js';
+import { routeTargetKey } from './v5-fields.js';
 /** WOLF V5 design plans over the loaded DT schemas. Pure, with no API writes. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { fieldLabel, coerceRowValue } from './draft-fields.js';
 import { nodeTitle, branchLabel } from './business.js';
 import { sortDestinations } from './destination-order.js';
@@ -16,10 +18,19 @@ const TYPES = {
   bot: ['W_BOT_v5', 'Bot vocal'],
   transfercallflow: ['W_TRANSFER_CALLFLOW_v5', 'Transfert de parcours'],
 };
+const typesFor = (media) =>
+  media === 'messaging'
+    ? Object.fromEntries(
+        Object.entries(MESSAGE_ROUTE_TABLES).map(([type, table]) => [
+          type,
+          [table, MESSAGE_LABELS[type]],
+        ]),
+      )
+    : TYPES;
 const text = (v) => (v == null ? '' : String(v)),
   own = (o, k) => Object.hasOwn(o || {}, k),
   copy = (v) => structuredClone(v);
-const targetField = (field) => field.replace('TARGET_TYPE', 'TARGET');
+const targetField = (field, table) => routeTargetKey(field, table.schema.properties);
 const isOutlet = (field) => /(^|_)TARGET_TYPE(?:_\d+)?$/.test(field);
 const branch = (field) =>
   /^TARGET_TYPE_\d+$/.test(field)
@@ -63,7 +74,7 @@ function fieldInfo(type, key, schema, table) {
     (type === 'schedulegroup' && key === 'SCHEDULE_GROUP') ||
     (type === 'decision' &&
       ['PARTICIPANT_DATA_TO_CHECK', 'DECISION_OPERATOR', 'DECISION_VALUE'].includes(key)) ||
-    (type === 'ratiodistrib' && /^RATIO[1-5]$/.test(key));
+    (type === 'ratiodistrib' && /^RATIO_?[1-9]$/.test(key));
   return {
     key,
     label: fieldLabel(key),
@@ -75,23 +86,23 @@ function fieldInfo(type, key, schema, table) {
 function outlets(table) {
   return Object.keys(table.schema?.properties || {})
     .filter(isOutlet)
-    .filter((field) => property(table, targetField(field)))
+    .filter((field) => property(table, targetField(field, table)))
     .map((field) => ({
       field,
-      targetField: targetField(field),
+      targetField: targetField(field, table),
       label: branchLabel({ field, branch: branch(field) }),
     }));
 }
-export function designerCatalogue(input) {
+export function designerCatalogue(input, { media = 'voice' } = {}) {
   const snapshot = normalizeSnapshot(input);
-  return Object.entries(TYPES).map(([type, [tableName, label, keyAlias]]) => {
+  return Object.entries(typesFor(media)).map(([type, [tableName, label, keyAlias]]) => {
     const tables = snapshot.tables.filter(
         (table) => table.name.toUpperCase() === tableName.toUpperCase(),
       ),
       table = tables.length === 1 ? tables[0] : null;
     let reason =
-      type === 'bot'
-        ? 'La création d’un bot nécessite aussi ses intents et ses dépendances externes.'
+      type === 'bot' || type === 'callback'
+        ? 'Ce bloc nécessite ses dépendances externes ; utilisez une configuration existante vérifiée.'
         : type === 'transfercallflow'
           ? 'Le transfert nécessite une configuration de flow versionnée et ne possède pas de sortie de reprise.'
           : tables.length > 1
@@ -133,8 +144,8 @@ export function designerCatalogue(input) {
     };
   });
 }
-function selectTable(snapshot, type, tableId) {
-  const capability = designerCatalogue(snapshot).find((item) => item.type === type);
+function selectTable(snapshot, type, tableId, media = 'voice') {
+  const capability = designerCatalogue(snapshot, { media }).find((item) => item.type === type);
   if (!capability?.available)
     throw Error(capability?.reason || 'Ce type de bloc WOLF V5 n’est pas pris en charge.');
   if (tableId && tableId !== capability.tableId)
@@ -142,9 +153,9 @@ function selectTable(snapshot, type, tableId) {
   return { table: snapshot.tables.find((t) => t.id === capability.tableId), capability };
 }
 function currentFlow(snapshot, flow) {
-  const live = buildVoiceInventory(snapshot).flows.find((item) => item.id === flow?.id);
-  if (!live || live.version !== '5')
-    throw Error('Choisissez un parcours WOLF V5 présent dans les données chargées.');
+  const live = buildJourneyInventory(snapshot).flows.find((item) => item.id === flow?.id);
+  if (!live || (live.version !== '5' && live.media !== 'messaging'))
+    throw Error('Choisissez un parcours WOLF présent dans les données chargées.');
   // The caller must supply an effective snapshot when there are pending drafts.
   for (const node of flow.nodes || []) {
     const fresh = live.nodes.find((n) => n.id === node.id);
@@ -153,9 +164,9 @@ function currentFlow(snapshot, flow) {
   }
   return live;
 }
-export function designerOptions({ snapshot: input, flow }) {
+export function designerOptions({ snapshot: input, flow, media = flow?.media || 'voice' }) {
   const snapshot = normalizeSnapshot(input),
-    catalogue = designerCatalogue(snapshot),
+    catalogue = designerCatalogue(snapshot, { media }),
     placements = [],
     destinations = [],
     notices = [];
@@ -166,10 +177,10 @@ export function designerOptions({ snapshot: input, flow }) {
     ),
     definitions: catalogueRows(snapshot),
   };
-  if (!flow) return { catalogue, placements, destinations, notices, participantData };
+  if (!flow) return { media, catalogue, placements, destinations, notices, participantData };
   const live = currentFlow(snapshot, flow);
   for (const node of live.nodes) {
-    if (!TYPES[node.type]) continue;
+    if (!typesFor(live.media)[node.type]) continue;
     if (node.type !== 'transfercallflow')
       destinations.push({
         nodeId: node.id,
@@ -189,6 +200,7 @@ export function designerOptions({ snapshot: input, flow }) {
       });
   }
   return {
+    media,
     catalogue,
     placements,
     destinations: sortDestinations(destinations),
@@ -261,8 +273,8 @@ function validateSemantics(type, table, row, continuationField, snapshot) {
   )
     throw Error('Le délai du menu WOLF V5 doit être de 3, 5, 7, 10 ou 12 secondes.');
   if (type === 'ratiodistrib') {
-    const ratios = Object.keys(table.schema.properties).filter((k) => /^RATIO[1-5]$/.test(k));
-    if (!ratios.length) throw Error('Le schéma ne contient aucun poids de répartition WOLF V5.');
+    const ratios = Object.keys(table.schema.properties).filter((k) => /^RATIO_?[1-9]$/.test(k));
+    if (!ratios.length) throw Error('Le schéma ne contient aucun poids de répartition WOLF.');
     if (
       ratios.some(
         (k) => text(row[k]).trim() && (!Number.isFinite(Number(row[k])) || Number(row[k]) < 0),
@@ -271,7 +283,11 @@ function validateSemantics(type, table, row, continuationField, snapshot) {
       throw Error('Les poids de répartition doivent être des nombres positifs ou nuls.');
     if (!ratios.some((k) => Number(row[k]) > 0))
       throw Error('Renseignez au moins un poids de répartition supérieur à zéro.');
-    const selected = continuationField?.match(/^(RATIO[1-5])_TARGET_TYPE$/)?.[1];
+    const selected =
+      continuationField?.match(/^(RATIO[1-5])_TARGET_TYPE$/)?.[1] ||
+      (continuationField?.match(/^TARGET_TYPE_([1-9])$/)
+        ? 'RATIO_' + continuationField.match(/([1-9])$/)[1]
+        : null);
     if (selected && !(Number(row[selected]) > 0))
       throw Error('Le poids de la sortie de reprise doit être supérieur à zéro.');
   }
@@ -297,7 +313,7 @@ function projected(snapshot, createdRows, updatedRows, flowId, nodeId, notices, 
     table.rows[index] = copy(row);
   }
   const result = normalizeSnapshot(next),
-    inventory = buildVoiceInventory(result),
+    inventory = buildJourneyInventory(result),
     flow = inventory.flows.find((f) => f.id === flowId);
   if (!flow || !flow.nodes.some((n) => n.id === nodeId))
     throw Error('Le nouveau bloc n’est pas accessible depuis le parcours.');
@@ -374,11 +390,24 @@ function fail(error) {
     summary: null,
   };
 }
-export function prepareNewFlow({ snapshot: input, name, phone, division, tableId, values = {} }) {
+export function prepareNewFlow({
+  snapshot: input,
+  name,
+  phone,
+  division,
+  tableId,
+  media = 'voice',
+  values = {},
+}) {
   try {
     const snapshot = normalizeSnapshot(input),
-      { table, capability } = selectTable(snapshot, 'inboundcall', tableId);
-    if (!/^\+[1-9]\d{7,14}$/.test(text(phone)))
+      { table, capability } = selectTable(
+        snapshot,
+        media === 'messaging' ? 'segment' : 'inboundcall',
+        tableId,
+        media,
+      );
+    if (media !== 'messaging' && !/^\+[1-9]\d{7,14}$/.test(text(phone)))
       throw Error('Saisissez un numéro international, par exemple +33123456789, sans espaces.');
     const row = newRow(table, capability, { key: phone, name, division, values });
     validateRow(table, row);
@@ -390,8 +419,12 @@ export function prepareNewFlow({ snapshot: input, name, phone, division, tableId
       nodeId,
       nodeId,
       [
-        'Les sorties de l’accueil terminent l’appel. Ajoutez et raccordez les étapes avant publication.',
-        'Créer les lignes WOLF ne configure pas l’affectation téléphonique du numéro dans Genesys.',
+        media === 'messaging'
+          ? 'Raccordez les étapes avant publication. Le segment sera utilisé par le flow Messaging.'
+          : 'Les sorties de l’accueil terminent l’appel. Ajoutez et raccordez les étapes avant publication.',
+        media === 'messaging'
+          ? 'Le déploiement Web Messenger et INITIAL_SEGMENT se configurent dans Genesys et sur le site ; créer cette ligne ne les provisionne pas.'
+          : 'Créer les lignes WOLF ne configure pas l’affectation téléphonique du numéro dans Genesys.',
       ],
       'new-flow',
     );
@@ -414,9 +447,9 @@ export function prepareNewBlock({
   try {
     const snapshot = normalizeSnapshot(input),
       live = currentFlow(snapshot, flow);
-    if (type === 'inboundcall')
+    if (['inboundcall', 'segment'].includes(type))
       throw Error('Une entrée de parcours ne peut pas être insérée comme bloc.');
-    const { table, capability } = selectTable(snapshot, type, tableId),
+    const { table, capability } = selectTable(snapshot, type, tableId, live.media),
       options = designerOptions({ snapshot, flow: live });
     const placement = options.placements.find((p) => p.id === placementId);
     if (!placement) throw Error('Choisissez la sortie sur laquelle insérer ce bloc.');
@@ -474,15 +507,24 @@ export function prepareNewBlock({
 function canReturnToWaiting(flow, nodeId) {
   const seen = new Set(),
     queue = flow.edges
-      .filter((e) => /^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU)$/.test(e.branch || '') && e.to)
+      .filter(
+        (e) => /^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU|MENU_REPEAT)$/.test(e.branch || '') && e.to,
+      )
       .map((e) => e.to);
   while (queue.length) {
     const id = queue.shift();
     if (
       seen.has(id) ||
-      !['menu', 'decision', 'ratiodistrib', 'schedulegroup'].includes(
-        flow.nodes.find((n) => n.id === id)?.type,
-      )
+      ![
+        'menu',
+        'quickreplies',
+        'carousel',
+        'card',
+        'waitforinput',
+        'decision',
+        'ratiodistrib',
+        'schedulegroup',
+      ].includes(flow.nodes.find((n) => n.id === id)?.type)
     )
       continue;
     seen.add(id);
@@ -502,7 +544,7 @@ function reachableOutsideWaiting(flow, nodeId) {
       if (
         edge.from === id &&
         edge.relationship !== 'context' &&
-        !/^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU)$/.test(edge.branch || '') &&
+        !/^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU|MENU_REPEAT)$/.test(edge.branch || '') &&
         edge.to
       )
         queue.push(edge.to);
@@ -554,7 +596,7 @@ export function prepareRouteEdit({ snapshot: input, flow, nodeId, field, destina
       notices,
       'route-edit',
     );
-    const after = buildVoiceInventory(result.snapshot).flows.find((f) => f.id === live.id),
+    const after = buildJourneyInventory(result.snapshot).flows.find((f) => f.id === live.id),
       removed = live.nodes.filter((n) => !after.nodes.some((a) => a.id === n.id));
     if (removed.length)
       result.summary.notices.push(

@@ -1,4 +1,4 @@
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -41,7 +41,7 @@ export function applyDraftRows(input, drafts = new Map()) {
 
 /** Rebuild all derived nodes, branches, resources and issues from draft values. */
 export function workingInventory(snapshot, drafts = new Map()) {
-  return buildVoiceInventory(applyDraftRows(snapshot, drafts));
+  return buildJourneyInventory(applyDraftRows(snapshot, drafts));
 }
 
 /** Local display names never change immutable WOLF rows or the source inventory. */

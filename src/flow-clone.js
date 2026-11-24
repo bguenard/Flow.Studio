@@ -1,5 +1,7 @@
+import { MESSAGE_ROUTE_TABLES, MESSAGE_TABLES, messageLocalReference } from './media-profiles.js';
+import { routeTargetKey } from './v5-fields.js';
 /** Whole-journey local drafts. No remote API or publishing capability. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import {
   FLOW_INITIALIZATION,
   validateFlowInitializationTable,
@@ -105,14 +107,14 @@ function validLength(value, rule, label) {
  */
 export function cloneFlow(input, flow, options = {}) {
   const original = normalizeSnapshot(input);
-  const sourceFlow = buildVoiceInventory(original).flows.find((item) => item.id === flow?.id);
+  const sourceFlow = buildJourneyInventory(original).flows.find((item) => item.id === flow?.id);
   if (!sourceFlow) throw new Error('Le parcours source n’appartient pas à cet instantané.');
   const name = text(options.name).trim();
   const division = text(options.division).trim();
   if (!name) throw new Error('Donnez un nom métier à la déclinaison.');
   if (!division) throw new Error('Choisissez l’entité de la déclinaison.');
   const phone = options.phone == null || options.phone === '' ? '' : text(options.phone);
-  if (phone && !/^\+[1-9]\d{7,14}$/.test(phone))
+  if (sourceFlow.media !== 'messaging' && phone && !/^\+[1-9]\d{7,14}$/.test(phone))
     throw new Error(
       'Le numéro doit être au format international, par exemple +33123456789, sans espaces.',
     );
@@ -150,7 +152,13 @@ export function cloneFlow(input, flow, options = {}) {
     );
   if (phone && entryTable.rows.some((row) => text(row.key) === phone))
     throw new Error('Ce numéro est déjà utilisé dans la table d’entrée.');
-  const typeTables = TYPE_TABLES[sourceFlow.version];
+  if (
+    sourceFlow.media === 'messaging' &&
+    (!phone || phone !== phone.trim() || /[|\r\n]/.test(phone))
+  )
+    throw Error('Renseignez un segment unique sans séparateur WOLF.');
+  const typeTables =
+    sourceFlow.media === 'messaging' ? MESSAGE_ROUTE_TABLES : TYPE_TABLES[sourceFlow.version];
   const known = new Map();
   const refs = [];
   const referencesRetained = [],
@@ -224,14 +232,22 @@ export function cloneFlow(input, flow, options = {}) {
       if (!value) continue;
       const match = field.match(/^(.*?)(?:_)?TARGET_TYPE(?:_(\d+))?$/);
       if (match) {
-        const targetField = field.replace('TARGET_TYPE', 'TARGET');
+        const targetField = routeTargetKey(field, row);
         const rawTarget = text(row[targetField]);
         const [main, ...extras] = rawTarget.split('|');
         const type = value.split('|')[0].trim().toLowerCase();
         for (const extra of extras)
           if (/^pdata:/i.test(extra))
             for (const key of extra.slice(6).split(';').filter(Boolean))
-              resolve(`W_PARTICIPANT_DATA_v${sourceFlow.version}`, key, id, targetField, 'pdata');
+              resolve(
+                sourceFlow.media === 'messaging'
+                  ? MESSAGE_TABLES.pdata
+                  : `W_PARTICIPANT_DATA_v${sourceFlow.version}`,
+                key,
+                id,
+                targetField,
+                'pdata',
+              );
         if (dynamic(main)) {
           addReview({
             code: 'dynamic-reference',
@@ -258,7 +274,9 @@ export function cloneFlow(input, flow, options = {}) {
         resolve(typeTables[type], main, id, targetField, 'target');
         continue;
       }
-      if (
+      if (sourceFlow.media === 'messaging' && messageLocalReference(field)) {
+        resolve(messageLocalReference(field), value, id, field, 'direct');
+      } else if (
         /^(?:INQUEUE_MENU_[1-4]|INQUEUE_REPEAT_MENU|RECORDING_CONSENT_MENU|CONSENT_MENU|CONFIRMATION_ANI_MENU|CONFIRMATION_DIAL_MENU)$/.test(
           field,
         )

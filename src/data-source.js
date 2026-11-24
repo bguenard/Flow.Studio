@@ -1,3 +1,4 @@
+import { buildMessagingFlows } from './messaging-inventory.js';
 /**
  * Read-only WOLF sources. No Genesys secret or write request belongs in this module.
  * Imported values remain unchanged: in particular CSV cells stay strings.
@@ -783,5 +784,29 @@ export async function loadFromApi(baseUrl, token = '', options = {}) {
   return normalizeSnapshot({
     source: { kind: 'bff', url: apiRoot, readOnly: true, loadedAt: new Date().toISOString() },
     tables,
+  });
+}
+
+/** Unified inventory: engine identity is independent of the channel bindings. */
+export function buildJourneyInventory(input) {
+  const snapshot = normalizeSnapshot(input);
+  const voice = buildVoiceInventory(snapshot);
+  const messaging = buildMessagingFlows(snapshot, targetParts);
+  if (!messaging.length) return voice;
+  const flows = [...voice.flows, ...messaging];
+  const issues = [
+    ...voice.issues.filter((i) => i.code !== 'missing-inbound-table'),
+    ...messaging.flatMap((f) => f.issues),
+  ];
+  return deepFreeze({
+    flows,
+    issues,
+    counts: {
+      ...voice.counts,
+      flows: flows.length,
+      issues: issues.length,
+      configured: voice.counts.configured + messaging.length,
+      media: { voice: voice.flows.length, messaging: messaging.length },
+    },
   });
 }

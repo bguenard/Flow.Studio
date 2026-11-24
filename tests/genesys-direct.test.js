@@ -124,7 +124,7 @@ test('other media fail explicitly before any Genesys request', async () => {
       media: 'message',
       fetchImpl: async () => assert.fail('No fetch for unsupported media'),
     }),
-    /Seul le média voix/,
+    /périmètre voice ou all/,
   );
 });
 

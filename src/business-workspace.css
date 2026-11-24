@@ -104,7 +104,46 @@
   font-size: 15px;
 }
 
-/* Les étapes : une pastille par type, reliée à la suivante par un filet. */
+/* Chaque type d'étape a sa couleur, la même que dans le diagramme : on le reconnaît
+   sur le fil, puis dans les destinations qui y mènent. */
+.story-step,
+.story-link {
+  --kind: #3d5166;
+  --kind-soft: #eef2f6;
+}
+:is(.story-step, .story-link):is(
+    [data-kind='inboundcall'],
+    [data-kind='standardcallflow'],
+    [data-kind='segment']
+  ) {
+  --kind: #ab530d;
+  --kind-soft: #fff0e0;
+}
+:is(.story-step, .story-link)[data-kind='schedulegroup'] {
+  --kind: #17695f;
+  --kind-soft: #e8f3f1;
+}
+:is(.story-step, .story-link):is([data-kind='decision'], [data-kind='ratiodistrib']) {
+  --kind: #3f4fa3;
+  --kind-soft: #edf0fb;
+}
+:is(.story-step, .story-link):is(
+    [data-kind='menu'],
+    [data-kind='bot'],
+    [data-kind='quickreplies'],
+    [data-kind='carousel'],
+    [data-kind='card'],
+    [data-kind='waitforinput']
+  ) {
+  --kind: #6b3f95;
+  --kind-soft: #f4eef9;
+}
+:is(.story-step, .story-link):is([data-kind='service'], [data-kind='callback']) {
+  --kind: #1d5d94;
+  --kind-soft: #e8f1f9;
+}
+
+/* Les étapes : une pastille à la couleur du type, reliée à la suivante par un filet. */
 .story-steps {
   list-style: none;
   margin-block: 0;
@@ -114,18 +153,18 @@
   position: relative;
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
-  gap: 16px;
-  padding-bottom: 14px;
+  gap: 18px;
+  padding-bottom: 16px;
 }
 .story-step::before {
   content: '';
   position: absolute;
   left: 23px;
-  top: 52px;
-  bottom: -2px;
+  top: 58px;
+  bottom: -6px;
   width: 2px;
   border-radius: 2px;
-  background: #d9e0e6;
+  background: #dde3e9;
 }
 .story-step:last-child {
   padding-bottom: 0;
@@ -140,10 +179,11 @@
   place-items: center;
   width: 48px;
   height: 48px;
-  border: 1px solid #dfe5ea;
+  margin-top: 4px;
   border-radius: 12px;
-  background: #fff;
-  color: #ab530d;
+  background: var(--kind-soft);
+  color: var(--kind);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kind) 16%, transparent);
 }
 .story-icon svg {
   width: 22px;
@@ -158,18 +198,21 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #dfe5ea;
+  border: 1px solid #e1e6eb;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 1px 2px rgb(22 37 51 / 3%);
+  box-shadow:
+    0 1px 2px rgb(22 37 51 / 4%),
+    0 6px 16px -10px rgb(22 37 51 / 12%);
 }
 .story-step.selected .story-card {
   border-color: #f08b37;
   box-shadow: 0 0 0 3px #ff79001f;
 }
 .story-step.selected .story-icon {
-  border-color: #f08b37;
-  background: #fff3e8;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--kind) 16%, transparent),
+    0 0 0 3px #ff790038;
 }
 
 .story-id {
@@ -183,16 +226,26 @@
 .story-id > div:first-child {
   min-width: 0;
 }
-.story-id small {
-  display: block;
+.story-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
   color: #5f6a75;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.story-kind {
+  color: var(--kind);
+  font-weight: 650;
+}
+.story-number + .story-kind::before {
+  content: '·';
+  margin-inline: 7px;
+  color: #a3adb7;
+  font-weight: 400;
 }
 .story-id h3 {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: #1f2a34;
   font-size: 19px;
   line-height: 1.35;
@@ -206,10 +259,34 @@
   align-items: center;
   gap: 8px 10px;
 }
-.story-id-actions .btn {
-  min-height: 38px;
-  padding: 7px 16px;
+/* Présent sur chaque étape : discret au repos, il s'affirme au survol de sa carte. */
+.is-studio .story-id-actions .btn {
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 13px 5px 10px;
+  border-color: transparent;
+  background: #f1f4f6;
+  box-shadow: none;
+  color: #33414d;
   font-size: 14px;
+  font-weight: 600;
+}
+.is-studio .story-id-actions .btn svg {
+  width: 15px;
+  height: 15px;
+  color: #6b7783;
+}
+.is-studio .story-card:hover .story-id-actions .btn,
+.is-studio .story-id-actions .btn:focus-visible {
+  border-color: #cfd7de;
+  background: #fff;
+}
+.is-studio .story-id-actions .btn:hover {
+  border-color: var(--kind);
+  color: var(--kind);
+}
+.is-studio .story-id-actions .btn:hover svg {
+  color: inherit;
 }
 
 /* Ce qui se passe à l'étape : le libellé au-dessus de sa valeur ; les réglages courts côte à côte. */
@@ -244,14 +321,37 @@
   color: #5f6a75;
   font-size: 13px;
 }
-.story-quote {
+/* Ce que le client entend : une bulle à la couleur de l'étape, avec son haut-parleur. */
+.story-quote,
+.story-recorded {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 9px 14px 10px 12px;
+  border-radius: 3px 12px 12px 12px;
+  background: var(--kind-soft);
+  color: #1f2a34;
+  font-size: 15.5px;
+  line-height: 1.5;
+}
+.story-quote > svg,
+.story-recorded > svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 4px;
+  color: var(--kind);
+}
+.story-quote > span {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
-  color: #1f2a34;
-  font-size: 16px;
-  line-height: 1.5;
+}
+.story-lines dd > .story-quote {
+  margin-top: 6px;
 }
 .story-more-settings {
   margin: 14px 0 0;
@@ -264,58 +364,132 @@
   list-style: none;
   min-width: 0;
   margin: 0;
-  padding: 6px 24px;
+  padding: 8px 24px;
   border-top: 1px solid #e9edf0;
-  background: #f8fafb;
 }
 .story-branches > li {
   display: grid;
   grid-template-columns: minmax(120px, 34%) minmax(0, 1fr);
-  gap: 2px 18px;
+  gap: 6px 18px;
   align-items: start;
-  padding: 12px 0;
-}
-.story-branches > li + li {
-  border-top: 1px solid #e6eaee;
+  padding: 10px 0;
 }
 .story-branch-label {
-  padding-top: 1.5px;
-  color: #4d5965;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 36px;
+  padding-top: 7px;
+  color: #3d4954;
   font-size: 14.5px;
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.story-branch-target {
-  position: relative;
-  min-width: 0;
-  padding-left: 22px;
+/* Pastille de situation : pleine quand l'appel suit son cours, creuse quand le service est fermé. */
+.story-dot {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  margin-top: 6.5px;
+  border-radius: 50%;
+  background: #b6c0c9;
+}
+[data-tone='yes'] > .story-branch-label .story-dot {
+  background: #2f9e62;
+}
+[data-tone='off'] > .story-branch-label .story-dot {
+  background: none;
+  box-shadow: inset 0 0 0 2px #8894a0;
+}
+[data-tone='alert'] > .story-branch-label .story-dot {
+  background: #d64545;
+}
+[data-tone='wait'] > .story-branch-label .story-dot {
+  background: #e0a019;
+}
+/* Choix d'un menu : la touche que le client presse. */
+.story-key {
+  flex: 0 0 auto;
+  min-width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  padding: 0 6px;
+  border: 1px solid #cdd5dc;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #fff;
   color: #1f2a34;
-  font-size: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+.story-branch-target {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
+  color: #1f2a34;
+  font-size: 15.5px;
   line-height: 1.5;
 }
-.story-branch-target > svg {
-  position: absolute;
-  left: 0;
-  top: 5px;
-  width: 14px;
-  height: 14px;
-  color: #98a3ad;
-}
+/* Destination : l'étape où mène la branche, avec son icône et son numéro. */
 .story-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #9a4700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 3px 12px 3px 4px;
+  border: 1px solid #dfe5ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2a34;
   font: inherit;
-  font-weight: 650;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 1px 1px rgb(22 37 51 / 4%);
+}
+.story-link:hover {
+  border-color: var(--kind);
+  color: var(--kind);
+}
+.story-link:focus-visible {
+  outline: 3px solid #b65200;
+  outline-offset: 2px;
+}
+.story-link-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--kind-soft);
+  color: var(--kind);
+}
+.story-link-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.story-link-title {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
-.story-link:hover,
-.story-link:focus-visible {
-  text-decoration: underline;
+.story-link-step {
+  color: #6b7783;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.story-end,
+.story-unresolved {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0 1px;
 }
 .story-end {
   color: #5f6a75;
@@ -324,57 +498,59 @@
   color: #8a5a00;
   font-weight: 650;
 }
-.story-branch-target .story-quote,
-.story-recorded {
-  margin-top: 2px;
-  color: #4d5965;
+:is(.story-end, .story-unresolved) > svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 3.5px;
+}
+.story-end > svg {
+  color: #98a3ad;
+}
+.story-branch-target :is(.story-quote, .story-recorded) {
+  --kind: #7a8691;
+  --kind-soft: #f1f4f6;
+  padding: 7px 12px 8px 10px;
+  color: #3d4954;
   font-size: 14.5px;
 }
-.story-recorded {
-  display: block;
+.story-branch-target :is(.story-quote, .story-recorded) > svg {
+  flex-basis: 15px;
+  width: 15px;
+  height: 15px;
 }
 
-/* Largeur moyenne : l'étape en tête, puis réglages et suites côte à côte. */
-@container story (min-width:680px) and (max-width:1299.98px) {
-  .story-card.has-here.has-next {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+/* Dès que la place le permet, deux zones : à gauche l'étape et ce qui s'y passe,
+   à droite où va l'appel ensuite. Les deux se remplissent en hauteur l'une contre l'autre. */
+@container story (min-width:760px) {
+  .story-card.has-next {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
   }
-  .story-card.has-here.has-next .story-id {
-    grid-column: 1 / -1;
+  .story-card.has-next .story-here {
+    grid-column: 1;
+    grid-row: 2;
   }
-  .story-card.has-here.has-next .story-here {
-    padding-top: 18px;
-    border-top: 1px solid #e9edf0;
-  }
-  .story-card.has-here.has-next .story-branches {
+  .story-card.has-next .story-branches {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    padding: 12px 24px;
+    border-top: 0;
     border-left: 1px solid #e9edf0;
   }
 }
-/* Grande largeur : les trois zones sur une ligne, aux mêmes abscisses pour toutes les étapes. */
-@container story (min-width:1300px) {
-  .story-card {
-    grid-template-columns: minmax(250px, 0.72fr) minmax(0, 1fr) minmax(0, 1.3fr);
+/* Une rubrique n'a pas de suites : l'étape à gauche, ses réglages à droite, alignés d'une étape à l'autre. */
+@container story (min-width:1000px) {
+  .story-card.has-here:not(.has-next) {
+    grid-template-columns: minmax(250px, 0.5fr) minmax(0, 1fr);
   }
-  .story-id {
+  .story-card.has-here:not(.has-next) .story-id {
     flex-direction: column;
     justify-content: flex-start;
     padding: 22px 24px;
   }
-  .story-card:not(.has-here):not(.has-next) .story-id {
-    grid-column: 1 / -1;
-  }
-  .story-here {
-    grid-column: 2;
+  .story-card.has-here:not(.has-next) .story-here {
     padding: 22px 24px 22px 8px;
-  }
-  .story-card:not(.has-next) .story-here {
-    grid-column: 2 / -1;
-  }
-  .story-branches {
-    grid-column: 3;
-    padding: 10px 24px;
-    border-top: 0;
-    border-left: 1px solid #e9edf0;
   }
 }
 @container story (max-width:479.98px) {
@@ -452,7 +628,7 @@
   }
   .story-step::before {
     left: 17px;
-    top: 40px;
+    top: 46px;
   }
   .story-icon {
     width: 36px;

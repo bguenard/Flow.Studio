@@ -8,6 +8,15 @@ const LABELS = new Map(
     LANGUAGE: 'Langue du parcours',
     SUBROUTINES_LIST: 'Contrôles au démarrage',
     WELCOME_AUDIO: 'Message d’accueil',
+    WELCOM_MESSAGE: 'Message d’accueil',
+    MENU_MESSAGE: 'Message du menu',
+    CAROUSEL_QUESTION: 'Question du carrousel',
+    QUESTION: 'Question au client',
+    CARD_IMAGE_URL: 'Adresse de l’image',
+    CARD_IMAGE_TITLE: 'Titre de l’image',
+    NOINPUT_TIMEOUT: 'Délai de réponse',
+    INQUEUE_PACE: 'Intervalle des messages d’attente',
+    DIRECT_ROUTING_AGENT: 'Conseiller direct',
     SERVICE: 'Clé du service',
     QUEUE: 'File de destination',
     SKILLS: 'Compétences métier',
@@ -178,7 +187,7 @@ export function fieldLabel(key) {
     return `${days[day[1]]} · ${day[2] === 'WITH_TODAY' ? 'annonce incluant aujourd’hui' : day[2] === 'WITHOUT_TODAY' ? 'annonce excluant aujourd’hui' : 'menu des créneaux'}`;
   }
   const option = name.match(
-    /^OPTION([0-9]|STAR|DIEZ)(?:_(AUDIO|TARGET|TARGET_TYPE|TARGET_AUDIO))?$/,
+    /^OPTION([0-9]|STAR|DIEZ)(?:_(AUDIO|TARGET|TARGET_TYPE|TARGET_AUDIO|LABEL|MESSAGE))?$/,
   );
   if (option) {
     const choice =
@@ -186,11 +195,15 @@ export function fieldLabel(key) {
     const suffix =
       option[2] === 'TARGET_TYPE'
         ? 'type de destination'
-        : option[2] === 'TARGET'
-          ? 'destination'
-          : option[2]
-            ? 'annonce'
-            : 'choix';
+        : option[2] === 'LABEL'
+          ? 'libellé du bouton'
+          : option[2] === 'MESSAGE'
+            ? 'message'
+            : option[2] === 'TARGET'
+              ? 'destination'
+              : option[2]
+                ? 'annonce'
+                : 'choix';
     return `Choix ${choice} · ${suffix}`;
   }
   const ratioTarget = name.match(/^TARGET(?:_(TYPE|AUDIO))?_(10|[1-9])$/);
@@ -217,11 +230,12 @@ export function fieldLabel(key) {
     return `${branch} · ${target[2] === 'TYPE' ? 'type de destination' : target[2] === 'AUDIO' ? 'annonce' : 'destination'}`;
   }
   const sequence = name.match(
-    /^INQUEUE_(AUDIO|HOLD_MUSIC|HOLD_TIMEOUT|SUBROUTINES_LIST|MENU)_([1-4])$/,
+    /^INQUEUE_(MESSAGE|AUDIO|HOLD_MUSIC|HOLD_TIMEOUT|SUBROUTINES_LIST|MENU)_([1-4])$/,
   );
   if (sequence) {
     const labels = new Map([
       ['AUDIO', 'Message'],
+      ['MESSAGE', 'Message'],
       ['HOLD_MUSIC', 'Musique'],
       ['HOLD_TIMEOUT', 'Durée de musique'],
       ['SUBROUTINES_LIST', 'Contrôles'],

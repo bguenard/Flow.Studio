@@ -205,7 +205,7 @@ function groupFor(field) {
   if (key === 'INQUEUE_NOTLOGGEDIN_AGENT_CHECK') return ['limits', 'Seuils de prise en charge'];
   if (key === 'INQUEUE_PIQ_EWT_PLAY_POSITION')
     return ['waiting', 'Durées et répétitions de l’attente'];
-  if (key === 'LANGUAGE') return ['language', 'Langue de l’appel'];
+  if (key === 'LANGUAGE') return ['language', 'Langue du parcours'];
   if (
     [
       'SCHEDULE_GROUP',
@@ -237,7 +237,7 @@ function groupFor(field) {
   )
     return ['limits', 'Seuils de prise en charge'];
   if (/^RATIO_?\d+$/.test(key)) return ['weights', 'Répartition des appels'];
-  if (field.kind === 'audio') return ['messages', 'Messages diffusés'];
+  if (['audio', 'message'].includes(field.kind)) return ['messages', 'Messages diffusés'];
   if (field.editable || field.resource) return ['other', 'Autres réglages'];
   return null;
 }

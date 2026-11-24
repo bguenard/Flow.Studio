@@ -12,7 +12,7 @@ import {
 import { businessBranches, businessBranchView } from '../src/business-branches.js';
 import { businessInspectorModel } from '../src/journey-audience.js';
 import { stepIcon } from '../src/journey-navigation.js';
-import { icon } from '../src/ui-kit.js';
+import { icon, icons } from '../src/ui-kit.js';
 
 const flow = buildVoiceInventory(demoSnapshot).flows.find(
   (item) => item.key === 'DEMO_ENTREE_ATLANTIQUE',
@@ -24,12 +24,17 @@ test('the call is told step by step, in order, each with the icon of its type', 
   const html = steps(businessSteps(flow));
   assert.equal(html.length, flow.nodes.length);
   flow.nodes.forEach((node, index) => {
-    assert.match(html[index], new RegExp(`data-step="${index}"`));
+    assert.match(html[index], new RegExp(`data-step="${index}" data-kind="${node.type}"`));
     assert.ok(
       html[index].includes(`<span class="story-icon">${icon(stepIcon(node.type))}</span>`),
       node.type,
     );
-    assert.ok(html[index].includes(`ÉTAPE ${String(index + 1).padStart(2, '0')}`));
+    assert.ok(
+      html[index].includes(
+        `<span class="story-number">Étape ${index + 1}</span><span class="story-kind">${node.label}</span>`,
+      ),
+    );
+    assert.doesNotMatch(html[index], /ÉTAPE/);
   });
 });
 
@@ -64,9 +69,11 @@ test('a branch leads to the step it names', () => {
   assert.match(
     menu,
     new RegExp(
-      `<button[^>]*data-action="business-edit"[^>]*data-node="${target}"[^>]*>Déclarer ou suivre un sinistre</button>`,
+      `<button[^>]*class="story-link" data-kind="service"[^>]*data-action="business-edit"[^>]*data-node="${target}"[^>]*>.*?<span class="story-link-title">Déclarer ou suivre un sinistre</span><span class="story-link-step">Étape ${target + 1}</span></button>`,
     ),
   );
+  // The destination carries the icon of the step it leads to.
+  assert.ok(menu.includes(`<span class="story-link-icon">${icon(stepIcon('service'))}</span>`));
 });
 
 test('a rubric keeps only the steps and settings it concerns', () => {
@@ -126,7 +133,7 @@ test('attached client data stays out of the call story but remains reachable in 
   const rubric = steps(businessSteps(small, { task: 'context' }));
   assert.equal(rubric.length, 1);
   assert.match(rubric[0], /Motif sinistres/);
-  assert.doesNotMatch(rubric[0], /ÉTAPE \d/);
+  assert.doesNotMatch(rubric[0], /Étape \d/);
 });
 
 test('unsaved and drafted steps are flagged, and an unsaved choice reads like a saved one', () => {
@@ -211,7 +218,7 @@ test('a spoken message takes a full line; short settings can share one', () => {
 
 test('the end of the call reads differently from a step the call continues to', () => {
   const hours = steps(businessSteps(flow))[1];
-  assert.match(hours, /<span class="story-end">Fin d’appel<\/span>/);
+  assert.ok(hours.includes(`<span class="story-end">${icon('hangup')}Fin d’appel</span>`));
   assert.doesNotMatch(hours, /class="story-end">Orienter/);
 });
 
@@ -234,4 +241,59 @@ test('the condition of a rule is one of its settings, read like the others', () 
     html,
     /<div class="wide"><dt>Condition<\/dt><dd>Crise est égal à Actif<\/dd><\/div>/,
   );
+});
+
+test('what the caller hears reads as a spoken message, in a bubble', () => {
+  const [entry, hours] = steps(businessSteps(flow));
+  assert.ok(
+    entry.includes(`<span class="story-quote">${icon('speaker')}<span>« Bienvenue à l’agence`),
+  );
+  assert.ok(
+    hours.includes(`<span class="story-quote">${icon('speaker')}<span>« Nos conseillers`),
+  );
+  // A written conversation is not spoken.
+  const written = steps(businessSteps({ ...flow, media: 'messaging' }))[0];
+  assert.ok(written.includes(`<span class="story-quote">${icon('message')}<span>«`));
+  assert.ok(!written.includes(icon('speaker')));
+});
+
+test('a menu choice shows the phone key the caller presses', () => {
+  const menu = steps(businessSteps(flow))[2];
+  assert.match(
+    menu,
+    /<span class="story-key" aria-hidden="true">1<\/span><span>Choix 1<\/span>/,
+  );
+  assert.match(
+    menu,
+    /<span class="story-key" aria-hidden="true">2<\/span><span>Choix 2<\/span>/,
+  );
+  const keys = structuredClone(flow);
+  const edge = keys.edges.find((item) => item.branch === 'OPTION1');
+  edge.branch = 'OPTIONSTAR';
+  assert.match(
+    steps(businessSteps(keys))[2],
+    /<span class="story-key" aria-hidden="true">\*<\/span><span>Choix étoile/,
+  );
+});
+
+test('each branch is marked by its situation: open, closed, urgent, waiting', () => {
+  const [, hours, menu, team] = steps(businessSteps(flow));
+  const tone = (html, label) =>
+    new RegExp(`<li data-tone="(\\w+)"><span class="story-branch-label">.{0,80}${label}`).exec(
+      html,
+    )?.[1];
+  assert.equal(tone(hours, 'Pendant l’ouverture'), 'yes');
+  assert.equal(tone(hours, 'En dehors des horaires'), 'off');
+  assert.equal(tone(hours, 'Pendant les vacances'), 'off');
+  assert.equal(tone(hours, 'En situation d’urgence'), 'alert');
+  assert.equal(tone(team, 'Après l’attente'), 'wait');
+  assert.equal(tone(menu, 'Sinon'), 'plain');
+  // The mark never replaces the wording.
+  assert.match(hours, /<span class="story-dot" aria-hidden="true"><\/span><span>Pendant l’ouverture/);
+});
+
+test('the edit button names its action with an icon; a read-only step is only consulted', () => {
+  const entry = steps(businessSteps(flow))[0];
+  assert.ok(entry.includes(`${icon('pencil')}Modifier</button>`));
+  for (const name of ['pencil', 'speaker', 'hangup']) assert.ok(icons[name], name);
 });

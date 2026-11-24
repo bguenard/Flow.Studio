@@ -1,6 +1,25 @@
+import {
+  isMessageNode,
+  MESSAGE_ROUTE_TABLES,
+  MESSAGE_ROUTE_LABELS,
+  MESSAGE_TABLES,
+  messageLocalReference,
+  messageTextField,
+} from './media-profiles.js';
 /** Editable settings follow the loaded V5 schema; physical and logical row keys stay stable. */
-import { decisionFields, isV5Decision, validateDecision } from './decision-fields.js';
+import {
+  decisionFields,
+  isWolfDecision as isV5Decision,
+  validateDecision,
+} from './decision-fields.js';
 export const isV5 = (node) => /^W_.+_v5$/i.test(node?.tableName || '');
+export const isEditableWolf = (node) => isV5(node) || isMessageNode(node);
+export const targetTablesFor = (node) =>
+  isMessageNode(node) ? MESSAGE_ROUTE_TABLES : targetTables;
+export const routeLabelsFor = (node) =>
+  isMessageNode(node) ? MESSAGE_ROUTE_LABELS : routeTypeLabels;
+export const participantTableFor = (node) =>
+  isMessageNode(node) ? MESSAGE_TABLES.pdata : 'W_PARTICIPANT_DATA_v5';
 const aliases = {
   W_INBOUND_CALL_V5: 'DNIS_SEGMENT',
   W_SERVICES_V5: 'SERVICE',
@@ -62,6 +81,7 @@ export function routeTypeKey(key, columns) {
   return Object.keys(columns).find((k) => isRouteType(k) && routeTargetKey(k, columns) === key);
 }
 export function localReferenceTable(key, node) {
+  if (isMessageNode(node)) return messageLocalReference(key);
   if (
     /^INQUEUE_MENU_[1-4]$/.test(key) ||
     [
@@ -79,7 +99,7 @@ export function localReferenceTable(key, node) {
   return null;
 }
 export function v5FieldPolicy(node, key, value) {
-  if (!isV5(node)) return null;
+  if (!isEditableWolf(node)) return null;
   const rule = node.schema?.properties?.[key];
   if (!rule) return null;
   const type =
@@ -98,13 +118,15 @@ export function v5FieldPolicy(node, key, value) {
           ? 'pdata'
           : /^(?:INQUEUE_)?SUBROUTINES_LIST(?:_[1-4])?$/.test(key)
             ? 'controls'
-            : type === 'boolean'
-              ? 'boolean'
-              : ['integer', 'number'].includes(type)
-                ? 'number'
-                : ['array', 'object'].includes(type)
-                  ? 'json'
-                  : 'text';
+            : isMessageNode(node) && messageTextField(key)
+              ? 'message'
+              : type === 'boolean'
+                ? 'boolean'
+                : ['integer', 'number'].includes(type)
+                  ? 'number'
+                  : ['array', 'object'].includes(type)
+                    ? 'json'
+                    : 'text';
   return {
     schema: rule,
     editable: !immutableV5Field(node, key) && !rule.readOnly,
@@ -138,12 +160,12 @@ export function validateV5Edits(
   row,
   { snapshot, fields = Object.keys(row).filter((k) => changed(node.row || {}, row, k)) } = {},
 ) {
-  if (!isV5(node)) return;
+  if (!isEditableWolf(node)) return;
   const columns = { ...node.schema?.properties, ...row },
     edits = new Set(fields);
   const checkReference = (table, key, label) => {
     if (!key || dynamic(key)) return;
-    if (!snapshot) throw Error(`${label} : rechargez les tables V5 pour vérifier la référence.`);
+    if (!snapshot) throw Error(`${label} : rechargez les tables WOLF pour vérifier la référence.`);
     if (!referenceOptions(table, snapshot).some((o) => o.value === key))
       throw Error(`${label} : la référence « ${key} » est absente de ${table}.`);
   };
@@ -155,6 +177,23 @@ export function validateV5Edits(
     if (key === 'DIVISION' && !String(value ?? '').trim())
       throw Error('Choisissez une division Genesys.');
     if (policy?.schema.readOnly) throw Error(`${key} est en lecture seule dans le schéma Genesys.`);
+    if (isMessageNode(node) && key === 'CARD_IMAGE_URL' && value) {
+      let url;
+      try {
+        url = new URL(value);
+      } catch {
+        throw Error('L’image doit avoir une adresse HTTP ou HTTPS valide.');
+      }
+      if (!['http:', 'https:'].includes(url.protocol))
+        throw Error('L’image doit avoir une adresse HTTP ou HTTPS valide.');
+    }
+    if (
+      isMessageNode(node) &&
+      /^OPTION[0-8]_LABEL$/.test(key) &&
+      value &&
+      !row[key.replace('_LABEL', '_TARGET_TYPE')]
+    )
+      throw Error(`${key} : choisissez l’action de ce bouton.`);
     if (policy?.localTable) checkReference(policy.localTable, String(value ?? ''), key);
     if (policy?.kind === 'pdata' && value) {
       for (const pair of String(value).split('||')) {
@@ -171,6 +210,7 @@ export function validateV5Edits(
         throw Error('Le contrôle RECORDING n’est pas disponible dans l’attente WOLF V5.');
     }
     if (
+      !isMessageNode(node) &&
       key === 'MENU_TIMEOUT' &&
       value !== '' &&
       value != null &&
@@ -178,7 +218,7 @@ export function validateV5Edits(
     )
       throw Error('Le délai du menu V5 doit être de 3, 5, 7, 10 ou 12 secondes.');
     if (
-      (/^RATIO[1-5]$/.test(key) ||
+      (/^RATIO_?[1-9]$/.test(key) ||
         ['LOWER_BOUND', 'UPPER_BOUND', 'NB_PROPOSAL_MAX'].includes(key)) &&
       value !== '' &&
       value != null &&
@@ -196,8 +236,8 @@ export function validateV5Edits(
   )
     throw Error('La borne basse ne peut pas dépasser la borne haute.');
   if (
-    [...edits].some((k) => /^RATIO[1-5]$/.test(k)) &&
-    !Object.keys(row).some((k) => /^RATIO[1-5]$/.test(k) && Number(row[k]) > 0)
+    [...edits].some((k) => /^RATIO_?[1-9]$/.test(k)) &&
+    !Object.keys(row).some((k) => /^RATIO_?[1-9]$/.test(k) && Number(row[k]) > 0)
   )
     throw Error('Renseignez au moins un poids de répartition supérieur à zéro.');
   for (const typeKey of Object.keys(columns).filter(isRouteType)) {
@@ -207,22 +247,23 @@ export function validateV5Edits(
       [target, ...extras] = String(row[targetKey] ?? '').split('|');
     const type = rawType.trim().toLowerCase();
     if (!type && !target) continue;
-    if (!Object.hasOwn(routeTypeLabels, type))
-      throw Error(`${typeKey} : type de destination WOLF V5 inconnu.`);
+    if (!Object.hasOwn(routeLabelsFor(node), type))
+      throw Error(`${typeKey} : type de destination incompatible avec ce moteur.`);
     if (parameters.some((p) => !/^\s*(sub|lang|status):.+$/i.test(p)))
       throw Error(`${typeKey} : paramètres attendus sub:, lang: ou status:.`);
     for (const extra of extras) {
       if (!/^pdata:.+/i.test(extra))
         throw Error(`${targetKey} : utilisez pdata: pour associer des attributs.`);
       for (const key of extra.slice(6).split(';'))
-        checkReference('W_PARTICIPANT_DATA_v5', key, targetKey);
+        checkReference(participantTableFor(node), key, targetKey);
     }
     if (noTarget.has(type)) {
       if (target) throw Error(`${targetKey} : cette sortie ne prend pas de destination.`);
       continue;
     }
     if (!target) throw Error(`${targetKey} : renseignez une destination.`);
-    if (targetTables[type]) checkReference(targetTables[type], target, targetKey);
+    const tables = targetTablesFor(node);
+    if (tables[type]) checkReference(tables[type], target, targetKey);
     if (type === 'number' && !dynamic(target) && !/^\+?[0-9*#]+$/.test(target))
       throw Error('Renseignez un numéro de transfert valide.');
   }

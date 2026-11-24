@@ -6,7 +6,7 @@
  * Browser use and PKCE are documented in the SDK README. A token never appears
  * in a URL, callback, error, exported snapshot or persistent storage here.
  */
-import { isWolfV5VoiceTable } from './wolf-scope.js';
+import { isWolfV5VoiceTable, isStudioTable } from './wolf-scope.js';
 import { normalizeSnapshot } from './data-source.js';
 
 export const GENESYS_API_ORIGIN = 'https://api.mypurecloud.ie';
@@ -67,17 +67,15 @@ function apiError(status) {
 
 /**
  * @param {string} token Current user access token, managed by auth.js until its OAuth expiration.
- * @param {{media?:'voice',fetchImpl?:Function,onProgress?:Function,signal?:AbortSignal,sleepImpl?:Function,onCatalogue?:Function,concurrency?:number}} options
+ * @param {{media?:'voice'|'all',fetchImpl?:Function,onProgress?:Function,signal?:AbortSignal,sleepImpl?:Function,onCatalogue?:Function,concurrency?:number}} options
  * onProgress receives phase, tableName?, tablesLoaded?, totalTables?, pageNumber?, rowsLoaded?.
  * sleepImpl is a deterministic test seam; callers normally leave it unset.
  * @returns {Promise<object>} Immutable normalized snapshot.
  */
 export async function loadFromGenesys(token, options = {}) {
   const media = options.media ?? 'voice';
-  if (media !== 'voice')
-    throw new Error(
-      'Seul le média voix est pris en charge. Les autres médias nécessitent un adaptateur dédié.',
-    );
+  if (!['voice', 'all'].includes(media))
+    throw new Error('Choisissez le périmètre voice ou all (Voix et Messaging).');
   if (typeof token !== 'string' || !token.trim() || /[\r\n]/.test(token))
     throw new Error('Connectez-vous à votre compte Genesys avant de charger les tables.');
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -189,15 +187,16 @@ export async function loadFromGenesys(token, options = {}) {
     )
   )
     throw new Error('Genesys a retourné une table sans identité exploitable.');
-  const wolfTables = listed.filter((table) => isVoiceTableName(table.name));
+  const selectedTable = media === 'all' ? isStudioTable : isVoiceTableName;
+  const wolfTables = listed.filter((table) => selectedTable(table.name));
   const excludedLegacyTableIds = listed
     .filter((table) => /^W_.*_v4$/i.test(table.name))
     .map((table) => table.id);
   const excludedScopeTables = listed.filter(
-    (table) => /^W_/i.test(table.name) && !isVoiceTableName(table.name),
+    (table) => /^W_/i.test(table.name) && !selectedTable(table.name),
   ).length;
   const excludedMessageTables = listed.filter(
-    (table) => /^W_/i.test(table.name) && /MESSAGE/i.test(table.name),
+    (table) => /^W_/i.test(table.name) && /MESSAGE/i.test(table.name) && !selectedTable(table.name),
   ).length;
   progress({
     phase: 'selection',
@@ -223,7 +222,8 @@ export async function loadFromGenesys(token, options = {}) {
         url: API_ROOT,
         readOnly: true,
         listedTables: listed.length,
-        selectedVoiceTables: wolfTables.length,
+        selectedVoiceTables: wolfTables.filter((t) => isVoiceTableName(t.name)).length,
+        selectedMessageTables: wolfTables.filter((t) => !isVoiceTableName(t.name)).length,
         wolfVersion: '5',
         excludedScopeTables,
         excludedLegacyTableIds,
@@ -242,7 +242,7 @@ export async function loadFromGenesys(token, options = {}) {
       !object(detail) ||
       detail.id !== item.id ||
       detail.name !== item.name ||
-      !isVoiceTableName(detail.name)
+      !selectedTable(detail.name)
     )
       throw new Error(
         'L’identité de la table Genesys a changé pendant la lecture. Rechargez la source.',
@@ -274,7 +274,7 @@ export async function loadFromGenesys(token, options = {}) {
   // Only entry rows are needed to display the catalogue. The caller loads the
   // shared Core Model registry before releasing the remaining requests.
   const entries = options.onCatalogue
-    ? wolfTables.filter((item) => /^W_INBOUND_CALL_v5$/i.test(item.name))
+    ? wolfTables.filter((item) => /^W_(INBOUND_CALL_v5|INBOUND_MESSAGE_v1)$/i.test(item.name))
     : [];
   for (const item of entries) await readTable(item);
   if (entries.length) {

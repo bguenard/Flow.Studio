@@ -1,3 +1,4 @@
+import { isMessageNode } from './media-profiles.js';
 import { branchRank as routeBranchRank } from './business.js';
 import { routeTargetKey, routeTypeLabels } from './v5-fields.js';
 import { fieldLabel } from './draft-fields.js';
@@ -58,6 +59,9 @@ export function businessBranches(node, fields, pending = {}, onlyConfigured = tr
         target,
         type.key.replace('TARGET_TYPE', 'TARGET_AUDIO'),
         type.key.replace('TARGET_TYPE', 'AUDIO'),
+        type.key.replace('TARGET_TYPE', 'MESSAGE'),
+        type.key.replace('TARGET_TYPE', 'TARGET_MESSAGE'),
+        type.key.replace('TARGET_TYPE', 'LABEL'),
       ]);
       if (prefix) keys.add(prefix + '_AUDIO');
       if (/^RATIO\d+$/.test(prefix)) keys.add(prefix);
@@ -72,9 +76,12 @@ export function businessBranches(node, fields, pending = {}, onlyConfigured = tr
       const label = fieldLabel(type.key)
         .replace(/ · type de destination$/, '')
         .replace(/^Type de destination$/, 'Suite du parcours');
+      const buttonLabel = members.find((f) => f.key === prefix + '_LABEL');
       const configured =
-        members.some((f) => present(valueOf(f, pending))) ||
-        members.some((f) => Object.hasOwn(pending, f.key));
+        isMessageNode(node) && /^OPTION\d$/.test(prefix) && buttonLabel
+          ? present(valueOf(buttonLabel, pending))
+          : members.some((f) => present(valueOf(f, pending))) ||
+            members.some((f) => Object.hasOwn(pending, f.key));
       const route = String(valueOf(type, pending) || '')
         .split('|')[0]
         .toLowerCase();
@@ -108,7 +115,7 @@ function destination(branch) {
       ? target.display
       : '',
   ].filter(present);
-  return `<p class="business-branch-destination"><span>Suite de l’appel</span>${esc(parts.join(' · ') || 'Non configuré')}<button type="button" class="btn quiet small" data-action="set-audience" data-audience="admin">Modifier en Administration</button></p>`;
+  return `<p class="business-branch-destination"><span>Suite du parcours</span>${esc(parts.join(' · ') || 'Non configuré')}<button type="button" class="btn quiet small" data-action="set-audience" data-audience="admin">Modifier en Administration</button></p>`;
 }
 export function businessBranchView(
   model,

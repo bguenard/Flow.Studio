@@ -1,5 +1,5 @@
 /** Guided creation of a complete WOLF V5 route. No mutation and no API writes. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { designerCatalogue, prepareNewFlow, prepareNewBlock } from './flow-designer.js';
 
 const text = (value) => (value == null ? '' : String(value).trim());
@@ -158,7 +158,7 @@ export function prepareFlowWizard({ snapshot: input, form = {} }) {
       throw Error('Impossible de générer une clé unique compatible avec le schéma de la table.');
     };
     const add = (type, name, suffix, anchorId, field, continuationField, values) => {
-      const flow = buildVoiceInventory(snapshot).flows.find((flow) => flow.id === flowId);
+      const flow = buildJourneyInventory(snapshot).flows.find((flow) => flow.id === flowId);
       plan = accept(
         prepareNewBlock({
           snapshot,
@@ -232,7 +232,7 @@ export function prepareFlowWizard({ snapshot: input, form = {} }) {
             row: structuredClone(row),
           });
       }
-    const flow = buildVoiceInventory(snapshot).flows.find((flow) => flow.id === flowId);
+    const flow = buildJourneyInventory(snapshot).flows.find((flow) => flow.id === flowId);
     if (
       !flow ||
       createdRows.length !== createdIds.size ||

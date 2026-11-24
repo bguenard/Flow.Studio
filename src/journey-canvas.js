@@ -1,3 +1,4 @@
+import { MESSAGE_LABELS } from './media-profiles.js';
 import { nodeTitle, flowRoutes, businessFields } from './business.js';
 import { journeySteps } from './journey-navigation.js';
 import { audienceNodeTitle } from './journey-audience.js';
@@ -40,7 +41,8 @@ const NO_DESTINATION_TYPES = new Set(['disconnect', 'next', 'enable', 'disable']
 // INQUEUE_TARGET is the real continuation after waiting (e.g. N1 → N2).
 // Only attached waiting menus and the service's queue property are folded.
 const attachedQueue = (route) => route.edge.derivedFrom === 'QUEUE';
-const attachedMenu = (route) => /^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU)$/.test(route.edge.field || '');
+const attachedMenu = (route) =>
+  /^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU|MENU_REPEAT)$/.test(route.edge.field || '');
 const attachedRoute = (route) => attachedQueue(route) || attachedMenu(route);
 
 function previewOf(node) {
@@ -51,16 +53,15 @@ function previewOf(node) {
       field.value !== undefined &&
       field.key !== 'DESCRIPTION',
   );
-  const priorities =
-    node.type === 'inboundcall'
-      ? ['WELCOME_AUDIO', 'LANGUAGE']
-      : node.type === 'menu'
-        ? ['MENU_AUDIO']
-        : node.type === 'service'
-          ? ['QUEUE', 'SKILLS', 'PRIORITY']
-          : node.type === 'schedulegroup'
-            ? ['SCHEDULE_GROUP', 'EMERGENCY_GROUP']
-            : ['PARTICIPANT_DATA_TO_CHECK', 'DECISION_VALUE', 'PDATA_LIST_1'];
+  const priorities = ['inboundcall', 'segment'].includes(node.type)
+    ? ['WELCOM_MESSAGE', 'WELCOME_AUDIO', 'LANGUAGE']
+    : ['menu', 'quickreplies', 'carousel', 'waitforinput'].includes(node.type)
+      ? ['MENU_MESSAGE', 'CAROUSEL_QUESTION', 'QUESTION', 'MENU_AUDIO']
+      : node.type === 'service'
+        ? ['QUEUE', 'SKILLS', 'PRIORITY']
+        : node.type === 'schedulegroup'
+          ? ['SCHEDULE_GROUP', 'EMERGENCY_GROUP']
+          : ['PARTICIPANT_DATA_TO_CHECK', 'DECISION_VALUE', 'PDATA_LIST_1'];
   const field =
     priorities.map((key) => fields.find((item) => item.key === key)).find(Boolean) ||
     fields.find((item) => item.kind === 'audio') ||
@@ -287,7 +288,9 @@ export function journeyModel(flow, { allLinks = false } = {}) {
       kind: node.type,
       typeLabel: step.entry
         ? 'Entrée du parcours'
-        : KIND_LABELS[node.type] || node.label || 'Étape',
+        : (node.media === 'messaging' ? MESSAGE_LABELS[node.type] : KIND_LABELS[node.type]) ||
+          node.label ||
+          'Étape',
       icon: KIND_ICONS[node.type] || 'layers',
       preview: preview.text,
       previewLabel: preview.label,
@@ -336,7 +339,8 @@ export function journeyModel(flow, { allLinks = false } = {}) {
             ? 'Destination dynamique'
             : unresolved
               ? 'À vérifier'
-              : KIND_LABELS[kind] || 'Destination',
+              : (flow.media === 'messaging' ? MESSAGE_LABELS[kind] : KIND_LABELS[kind]) ||
+                'Destination',
           icon: unresolved ? 'alert' : KIND_ICONS[kind] || 'phone',
           preview: '',
           previewLabel: '',

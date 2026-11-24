@@ -28,8 +28,9 @@ export function journeySteps(flow) {
   }
   const entry =
     nodes.get(flow?.id)?.node ||
-    [...nodes.values()].find(({ node }) => ['inboundcall', 'standardcallflow'].includes(node.type))
-      ?.node ||
+    [...nodes.values()].find(({ node }) =>
+      ['inboundcall', 'standardcallflow', 'segment'].includes(node.type),
+    )?.node ||
     null;
   const seenEdges = new Set();
   const routes = flowRoutes({ ...flow, nodes: [...nodes.values()].map(({ node }) => node) })

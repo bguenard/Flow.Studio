@@ -1,5 +1,10 @@
-import { isV5, immutableV5Field, validateV5Edits } from './v5-fields.js';
-import { decisionFields, isV5Decision, validateDecision } from './decision-fields.js';
+import { isMessageNode, messageEditorValue, messageStoredValue } from './media-profiles.js';
+import { isEditableWolf as isV5, immutableV5Field, validateV5Edits } from './v5-fields.js';
+import {
+  decisionFields,
+  isWolfDecision as isV5Decision,
+  validateDecision,
+} from './decision-fields.js';
 import { validateResourceChoice } from './genesys-resources.js';
 /** Prepare one local step draft across view changes; never mutate input data. */
 import { businessFields, humanText } from './business.js';
@@ -58,6 +63,7 @@ export function prepareStepDraft({
         (field.kind === 'boolean' &&
           String(node.row[key]).toLowerCase() === String(input).toLowerCase()) ||
         shownAudio ||
+        (field.kind === 'message' && messageEditorValue(node.row[key]) === input) ||
         hiddenNumber)
     )
       continue;
@@ -84,7 +90,7 @@ export function prepareStepDraft({
       }
       if ((!field.editable && !field.resource?.audio) || protectedField(key))
         throw Error('Ce réglage ne peut pas être modifié sans sélection Genesys.');
-      if (key.toUpperCase() === 'DESCRIPTION') {
+      if (key.toUpperCase() === 'DESCRIPTION' && !(isMessageNode(node) && node.type === 'card')) {
         const original = text(node.row[key]),
           label = text(input);
         value =
@@ -125,6 +131,7 @@ export function prepareStepDraft({
           throw Error('Saisissez uniquement le texte du message à lire au client.');
         value = plain.trim() ? `tts:${plain}` : '';
       }
+      if (field.kind === 'message') value = messageStoredValue(value);
       row[key] = coerceRowValue(node.row[key], value, schema?.properties?.[key]);
     } catch (error) {
       throw Error(`${field.label} : ${error.message}`);

@@ -36,6 +36,11 @@ export const icons = {
   play: '<path d="m7 3 14 9-14 9Z"/>',
   link: '<path d="m10 14 4-4m-5 7-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2-2 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
   bell: '<path d="M5 17h14l-2-3V9A5 5 0 0 0 7 9v5ZM10 21h4"/>',
+  pencil: '<path d="M4 20l1-4.5L16.5 4a2.1 2.1 0 0 1 3 3L8 19Z"/><path d="m14.5 6 3 3"/>',
+  speaker:
+    '<path d="M4 9.5v5h3.5L12 18V6L7.5 9.5Z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/>',
+  hangup:
+    '<path transform="rotate(135 12 12)" d="m8 3 2 5-3 2c1 3 4 6 7 7l2-3 5 2v4c0 2-3 2-5 1C9 19 5 15 3 8 2 5 2 3 4 3Z"/>',
 };
 export const icon = (name) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name] || icons.layers}</svg>`;

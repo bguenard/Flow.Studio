@@ -1,3 +1,9 @@
+import { messageStoredValue } from './media-profiles.js';
+import {
+  journeyMediaTabs,
+  messagingScopeNote,
+  messagingEntryDetails,
+} from './journey-media-view.js';
 import { applyViewLayout, setElementLayout } from './view-layout.js';
 import { FLOW_INITIALIZATION } from './flow-initialization.js';
 import { createFlowInitializationClient } from './genesys-flow-initialization.js';
@@ -97,7 +103,7 @@ import {
 import { simulatorView } from './simulator-view.js';
 import { loadResourceCatalogue, resourceForField } from './genesys-resources.js';
 import { audioModeEdit } from './resource-editor.js';
-import { selectWolfV5, registryInScope } from './wolf-scope.js';
+import { selectStudioScope, registryInScope } from './wolf-scope.js';
 import {
   businessWorkspace,
   businessSteps,
@@ -115,7 +121,7 @@ import { prepareStepDraft } from './step-draft.js';
 import { loadJourneyAnalytics } from './analytics.js';
 import { analyticsView } from './analytics-view.js';
 import { enhanceSelects, normalizeSelectSearch } from './searchable-select.js';
-import { normalizeSnapshot, buildVoiceInventory, parseTableFile } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory, parseTableFile } from './data-source.js';
 import {
   getAuthConfig,
   saveAuthConfig,
@@ -185,9 +191,9 @@ const viewNames = {
   coremodel: 'Créer un Core Model',
   coremodeldelete: 'Supprimer un Core Model',
   callcompare: 'Comparatif des appels',
-  configuration: 'Configurations V5',
+  configuration: 'Configurations WOLF',
   wizard: 'Création guidée',
-  designer: 'Designer WOLF V5',
+  designer: 'Designer WOLF',
   quality: 'Contrôle du parcours',
   simulation: 'Studio d’appel',
   publication: 'Publication Genesys',
@@ -220,6 +226,7 @@ function initialState() {
     recovery: null,
     storageError: '',
     catalogueModel: '',
+    catalogueMedia: 'voice',
     onlyConfigured: true,
     businessTask: 'all',
     businessQuery: '',
@@ -482,10 +489,10 @@ function setSource(snapshot, label, sourceMode = 'local') {
   ui.publicationRun = null;
   ui.recovery = null;
   ui.storageError = '';
-  const normalized = normalizeSnapshot(selectWolfV5(normalizeSnapshot(snapshot)));
+  const normalized = normalizeSnapshot(selectStudioScope(normalizeSnapshot(snapshot)));
   if (!normalized.tables.length)
-    throw Error('Aucune table voix WOLF V5 dans cette source. Les tables V4 sont hors périmètre.');
-  const inventory = buildVoiceInventory(normalized);
+    throw Error('Aucune table WOLF Voix V5 ou Messaging V1 dans cette source.');
+  const inventory = buildJourneyInventory(normalized);
   ui.snapshot = normalized;
   ui.inventory = inventory;
   ui.catalogueModel = '';
@@ -904,7 +911,8 @@ function focusPage() {
   title.focus({ preventScroll: true });
 }
 function flowMeta(f) {
-  const number = /^\+?\d[\d ]+$/.test(f.key) ? f.key : null;
+  const number =
+    f.media === 'messaging' ? 'Segment : ' + f.key : /^\+?\d[\d ]+$/.test(f.key) ? f.key : null;
   const duplicate = ui.inventory.flows.filter((x) => x.key === f.key).length > 1;
   const homonym =
     !number && ui.inventory.flows.some((x) => x.id !== f.id && flowTitle(x) === flowTitle(f));
@@ -927,7 +935,7 @@ function categoryTag(f) {
         ? tag('Brouillon', 'amber')
         : f.category === 'template'
           ? tag('Rôle à déclarer', 'amber')
-          : tag('Parcours voix', 'neutral');
+          : tag(f.media === 'messaging' ? 'Messaging' : 'Parcours voix', 'neutral');
 }
 function inReferenceSpace() {
   return (
@@ -946,7 +954,7 @@ function inReferenceSpace() {
 function shell(body) {
   const n = draftChanges().length + ui.creations.size + ui.blockCreations.size,
     collapsed = (sidebarShownCollapsed = menuCollapsed());
-  return `<div class="app-shell ${collapsed ? 'sidebar-collapsed ' : ''}${ui.view === 'flow' && !ui.clone && !ui.loading ? 'is-studio' : ui.view === 'catalogue' && !ui.loading ? 'is-catalogue' : ui.view === 'activity' && !ui.loading ? 'is-analytics' : ui.view === 'configuration' && !ui.loading ? 'is-configuration' : ['compare', 'copy'].includes(ui.view) && !ui.loading ? 'is-comparison' : ''}"><aside class="sidebar"><a href="#" class="brand" data-action="nav" data-view="catalogue"><img src="./src/favicon.svg" alt="Orange"><strong>Orange<br>Business</strong></a><div class="studio-name">WOLF Core Studio <span>Parcours voix V5</span></div><div class="nav-label">PARCOURS</div><nav>${[
+  return `<div class="app-shell ${collapsed ? 'sidebar-collapsed ' : ''}${ui.view === 'flow' && !ui.clone && !ui.loading ? 'is-studio' : ui.view === 'catalogue' && !ui.loading ? 'is-catalogue' : ui.view === 'activity' && !ui.loading ? 'is-analytics' : ui.view === 'configuration' && !ui.loading ? 'is-configuration' : ['compare', 'copy'].includes(ui.view) && !ui.loading ? 'is-comparison' : ''}"><aside class="sidebar"><a href="#" class="brand" data-action="nav" data-view="catalogue"><img src="./src/favicon.svg" alt="Orange"><strong>Orange<br>Business</strong></a><div class="studio-name">WOLF Core Studio <span>Voix & Messaging</span></div><div class="nav-label">PARCOURS</div><nav>${[
     ['catalogue', 'phone'],
     ['references', 'layers'],
     ['compare', 'diff'],
@@ -967,18 +975,20 @@ function shell(body) {
     )
     .join(
       '',
-    )}</nav><div class="sidebar-bottom"><div class="sidebar-context"><span class="status-dot"></span> Voix<div>Tables WOLF V5</div></div><button class="nav-item ${ui.view === 'settings' ? 'active' : ''}" data-action="nav" data-view="settings" aria-label="Connexion" title="Connexion">${icon('link')}<span>Connexion</span></button><button class="nav-item ${ui.view === 'diagnostic' ? 'active' : ''}" data-action="nav" data-view="diagnostic" aria-label="Diagnostic technique" title="Diagnostic technique">${icon('code')}<span>Diagnostic technique</span></button><button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}" title="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}">${icon('chevron')}<span>Réduire le menu</span></button></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb">WOLF Core Studio ${icon('chevron')}<strong>${viewNames[ui.view]}</strong></div><div class="top-actions">${tag(ui.source, getAccessToken() ? 'green' : 'neutral')}<span class="avatar" title="${esc(ui.identity?.userName || 'Orange Business')}">${esc(
+    )}</nav><div class="sidebar-bottom"><div class="sidebar-context"><span class="status-dot"></span> Voix &amp; Messaging<div>Tables WOLF</div></div><button class="nav-item ${ui.view === 'settings' ? 'active' : ''}" data-action="nav" data-view="settings" aria-label="Connexion" title="Connexion">${icon('link')}<span>Connexion</span></button><button class="nav-item ${ui.view === 'diagnostic' ? 'active' : ''}" data-action="nav" data-view="diagnostic" aria-label="Diagnostic technique" title="Diagnostic technique">${icon('code')}<span>Diagnostic technique</span></button><button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}" title="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}">${icon('chevron')}<span>Réduire le menu</span></button></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb">WOLF Core Studio ${icon('chevron')}<strong>${viewNames[ui.view]}</strong></div><div class="top-actions">${tag(ui.source, getAccessToken() ? 'green' : 'neutral')}<span class="avatar" title="${esc(ui.identity?.userName || 'Orange Business')}">${esc(
     ui.identity?.userName
       ?.split(/\s+/)
       .map((part) => part[0])
       .slice(0, 2)
       .join('')
       .toUpperCase() || 'OB',
-  )}</span></div></header><main class="content">${ui.error ? `<div class="error-box" role="alert">${esc(ui.error)}</div>` : ''}${ui.identityError ? notice('Parcours accessibles. La publication et la reprise automatique des brouillons restent indisponibles tant que le compte et l’organisation ne sont pas vérifiés. Exportez vos modifications avant de fermer cette page. <details><summary>Détail de la vérification</summary>' + esc(ui.identityError) + '</details>', 'warning') : ''}${ui.storageError ? notice(esc(ui.storageError), 'warning') : ''}${ui.recovery && ui.view === 'catalogue' ? `<div class="workspace-recovery"><div><strong>Brouillons retrouvés</strong><p>Des modifications enregistrées dans ce navigateur peuvent être reprises.</p></div>${btn('Reprendre', 'workspace-restore', 'primary small')}${btn('Ignorer', 'workspace-dismiss', 'quiet small')}</div>` : ''}${sourceLoadingNotice()}${body}<div class="bottom-note">${ui.inventory ? 'Périmètre : tables voix WOLF V5' : 'Connexion Genesys'}${draftChanges().length ? ' · Modifications en brouillon' : ''}</div></main></div></div>`;
+  )}</span></div></header><main class="content">${ui.error ? `<div class="error-box" role="alert">${esc(ui.error)}</div>` : ''}${ui.identityError ? notice('Parcours accessibles. La publication et la reprise automatique des brouillons restent indisponibles tant que le compte et l’organisation ne sont pas vérifiés. Exportez vos modifications avant de fermer cette page. <details><summary>Détail de la vérification</summary>' + esc(ui.identityError) + '</details>', 'warning') : ''}${ui.storageError ? notice(esc(ui.storageError), 'warning') : ''}${ui.recovery && ui.view === 'catalogue' ? `<div class="workspace-recovery"><div><strong>Brouillons retrouvés</strong><p>Des modifications enregistrées dans ce navigateur peuvent être reprises.</p></div>${btn('Reprendre', 'workspace-restore', 'primary small')}${btn('Ignorer', 'workspace-dismiss', 'quiet small')}</div>` : ''}${sourceLoadingNotice()}${body}<div class="bottom-note">${ui.inventory ? 'Périmètre : WOLF Voix V5 et Messaging V1' : 'Connexion Genesys'}${draftChanges().length ? ' · Modifications en brouillon' : ''}</div></main></div></div>`;
 }
 function catalogueEntries() {
   return filterCatalogueEntries(
-    ui.inventory.flows.map((_, i) => ({ f: flowAt(i), i })).filter(({ f }) => isEntityFlow(f)),
+    ui.inventory.flows
+      .map((_, i) => ({ f: flowAt(i), i }))
+      .filter(({ f }) => isEntityFlow(f) && (f.media || 'voice') === ui.catalogueMedia),
     ui.registry,
     { model: ui.catalogueModel || '', query: ui.query, title: displayTitle },
   );
@@ -998,12 +1008,14 @@ function flowCards() {
       .map(({ f, i }) => {
         const edits = f.nodes.filter((n) => ui.drafts.has(n.id)).length;
         const ref = role(f.id);
-        return `<article class="flow-card"><div class="flow-card-main"><span class="flow-symbol">${icon('phone')}</span><div>${categoryTag(f)}<h2><button data-action="open-flow" data-index="${i}" title="${esc(displayTitle(f))}">${esc(displayTitle(f))}</button></h2><p>${esc(flowMeta(f))}</p></div></div><div class="flow-card-meta">${sourceIncomplete() ? '<span>Détails en cours de chargement</span>' : `<span>${icon('menu')} ${f.menus.length} menu${f.menus.length > 1 ? 's' : ''}</span><span>${icon('people')} ${f.services.length} équipe${f.services.length > 1 ? 's' : ''}</span>`}${ref.role === 'declination' ? `<span>${icon('layers')} ${esc(ref.model.name)} · version ${esc(ref.base.label)}${ref.isCurrent ? '' : ' · version ' + esc(ref.latest.label) + ' disponible'}</span>` : ''}${edits ? tag('Adaptations en cours', 'amber') : ''}</div><div class="flow-card-actions"><div class="flow-card-links">${btn(icon('chart') + ' Activité', 'open-activity', 'quiet small', `data-index="${i}" aria-label="Activité de ${esc(displayTitle(f))}"`)}${btn(icon('diff') + ' Comparer', 'compare-flow', 'quiet small', `data-index="${i}" aria-label="Comparer ${esc(displayTitle(f))}"`)}</div>${btn('Ouvrir le parcours ' + icon('chevron'), 'open-flow', 'secondary small', `data-index="${i}"`)}</div></article>`;
+        return `<article class="flow-card"><div class="flow-card-main"><span class="flow-symbol">${icon(f.media === 'messaging' ? 'message' : 'phone')}</span><div>${categoryTag(f)}<h2><button data-action="open-flow" data-index="${i}" title="${esc(displayTitle(f))}">${esc(displayTitle(f))}</button></h2><p>${esc(flowMeta(f))}</p></div></div><div class="flow-card-meta">${sourceIncomplete() ? '<span>Détails en cours de chargement</span>' : `<span>${icon('menu')} ${f.menus.length} menu${f.menus.length > 1 ? 's' : ''}</span><span>${icon('people')} ${f.services.length} équipe${f.services.length > 1 ? 's' : ''}</span>`}${ref.role === 'declination' ? `<span>${icon('layers')} ${esc(ref.model.name)} · version ${esc(ref.base.label)}${ref.isCurrent ? '' : ' · version ' + esc(ref.latest.label) + ' disponible'}</span>` : ''}${edits ? tag('Adaptations en cours', 'amber') : ''}</div><div class="flow-card-actions"><div class="flow-card-links">${f.media === 'messaging' ? '' : btn(icon('chart') + ' Activité', 'open-activity', 'quiet small', `data-index="${i}" aria-label="Activité de ${esc(displayTitle(f))}"`)}${btn(icon('diff') + ' Comparer', 'compare-flow', 'quiet small', `data-index="${i}" aria-label="Comparer ${esc(displayTitle(f))}"`)}</div>${btn('Ouvrir le parcours ' + icon('chevron'), 'open-flow', 'secondary small', `data-index="${i}"`)}</div></article>`;
       })
       .join('') ||
     empty(
       'Aucun parcours trouvé',
-      'Modifiez votre recherche ou le filtre Core Model.',
+      ui.catalogueMedia === 'messaging' && !ui.inventory.flows.some((f) => f.media === 'messaging')
+        ? 'Aucun segment Messaging chargé. Vérifiez l’accès à W_INBOUND_MESSAGE_v1 et aux tables associées dans Genesys, ou importez leur export.'
+        : 'Modifiez votre recherche ou le filtre Core Model.',
       btn('Réinitialiser les filtres', 'catalogue-reset', 'secondary'),
     )
   );
@@ -1097,20 +1109,35 @@ function declarePage() {
 function catalogue(templates = false) {
   if (templates) return referencesPage();
   const all = workingFlows();
-  const options = catalogueModelOptions(all.filter(isEntityFlow), ui.registry);
+  const options = catalogueModelOptions(
+    all.filter((f) => isEntityFlow(f) && (f.media || 'voice') === ui.catalogueMedia),
+    ui.registry,
+  );
   if (!options.some((o) => o.value === ui.catalogueModel)) ui.catalogueModel = '';
   const count = catalogueEntries().length;
   return (
     head(
-      templates ? 'RÉFÉRENTIEL' : 'PARCOURS VOIX · WOLF V5',
+      templates
+        ? 'RÉFÉRENTIEL'
+        : ui.catalogueMedia === 'messaging'
+          ? 'PARCOURS MESSAGING'
+          : 'PARCOURS VOIX · WOLF V5',
       templates ? 'Core Models' : 'Parcours clients',
       templates
         ? 'Un parcours complet à réutiliser et à faire évoluer pour vos entités.'
-        : 'Parcours voix des entités : consultation, adaptation, simulation et publication.',
+        : 'Retrouvez et adaptez les parcours de vos entités.',
       btn(icon('diff') + ' Comparer des parcours', 'nav', 'secondary', 'data-view="compare"') +
-        btn('Création libre', 'designer-create', 'secondary') +
-        btn(icon('plus') + ' Créer un parcours', 'wizard-open', 'secondary'),
+        (ui.catalogueMedia === 'voice'
+          ? btn('Création libre', 'designer-create', 'secondary')
+          : '') +
+        btn(
+          icon('plus') + ' Créer un parcours',
+          ui.catalogueMedia === 'messaging' ? 'designer-create' : 'wizard-open',
+          'secondary',
+        ),
     ) +
+    journeyMediaTabs(ui.catalogueMedia) +
+    (ui.catalogueMedia === 'messaging' ? messagingScopeNote() : '') +
     `<div class="section-heading"><h2>${templates ? 'Parcours de référence disponibles' : 'Parcours des entités'} <span class="journey-count" id="catalogue-count">${count}</span></h2></div>${catalogueFilterView(options, ui.catalogueModel, ui.query, count)}<div class="flow-list" id="flow-list">${flowCards()}</div>`
   );
 }
@@ -1412,8 +1439,9 @@ function flowPage() {
     ? `data-model="${esc(r.model.id)}"`
     : `data-view="${r.role === 'none' && f.category === 'template' ? 'references' : 'catalogue'}"`;
   const draftCount = f.nodes.filter((n) => ui.drafts.has(n.id)).length;
-  return `<header class="studio-header"><div class="studio-heading-group">${btn(icon('undo'), isReference ? 'open-model' : 'nav', 'quiet studio-back', back + ' aria-label="Revenir aux parcours" title="Revenir aux parcours"')}<div class="studio-heading"><div class="studio-kicker">${isReference ? 'CORE MODEL' : r.role === 'declination' ? 'PARCOURS D’ENTITÉ' : 'PARCOURS VOIX'}<span>${ui.audience === 'admin' ? 'VUE ADMINISTRATION' : 'VUE MÉTIER'}</span></div><h1 title="${esc(displayTitle(f))}">${esc(displayTitle(f))}</h1><div class="studio-meta">${esc([humanText(f.division) || 'Entité non renseignée', /^\+?\d[\d ]+$/.test(f.key) ? f.key : null].filter(Boolean).join(' · '))}</div></div></div><div class="page-actions">${btn(icon('database') + ' Données du parcours', 'flow-data-open', 'secondary small')}${btn(icon('play') + ' Simuler un appel', 'simulation-open', 'secondary small')}${btn(icon('diff') + ' Avant / après l’appel', 'call-compare-open', 'secondary small')}${ui.liveActivity?.enabled ? liveActivityToggle(true) : ''}<details class="action-menu"><summary class="btn secondary small">Plus d’actions ${icon('down')}</summary><div class="action-menu-list">${btn(icon('shield') + ' Contrôler la configuration', 'quality-open', 'quiet small')}${btn(icon('layers') + ' Comparer avec un autre parcours', 'compare-flow', 'quiet small', `data-index="${ui.flow}"`)}${ui.liveActivity?.enabled ? '' : liveActivityToggle(false)}${btn(icon('phone') + ' Activité du numéro', 'open-activity', 'quiet small', `data-index="${ui.flow}"`)}</div></details>${isReference ? btn(icon('copy') + ' Créer un parcours', 'clone-start', 'primary small') : btn(icon('copy') + ' Reprendre depuis…', 'copy-start', 'primary small')}</div></header>
+  return `<header class="studio-header"><div class="studio-heading-group">${btn(icon('undo'), isReference ? 'open-model' : 'nav', 'quiet studio-back', back + ' aria-label="Revenir aux parcours" title="Revenir aux parcours"')}<div class="studio-heading"><div class="studio-kicker">${isReference ? 'CORE MODEL' : r.role === 'declination' ? 'PARCOURS D’ENTITÉ' : f.media === 'messaging' ? 'PARCOURS MESSAGING' : 'PARCOURS VOIX'}<span>${ui.audience === 'admin' ? 'VUE ADMINISTRATION' : 'VUE MÉTIER'}</span></div><h1 title="${esc(displayTitle(f))}">${esc(displayTitle(f))}</h1><div class="studio-meta">${esc([humanText(f.division) || 'Entité non renseignée', f.media === 'messaging' ? 'Segment : ' + f.key : /^\+?\d[\d ]+$/.test(f.key) ? f.key : null].filter(Boolean).join(' · '))}</div></div></div><div class="page-actions">${f.media === 'messaging' ? '' : `${btn(icon('database') + ' Données du parcours', 'flow-data-open', 'secondary small')}${btn(icon('play') + ' Simuler un appel', 'simulation-open', 'secondary small')}${btn(icon('diff') + ' Avant / après l’appel', 'call-compare-open', 'secondary small')}${ui.liveActivity?.enabled ? liveActivityToggle(true) : ''}`}<details class="action-menu"><summary class="btn secondary small">Plus d’actions ${icon('down')}</summary><div class="action-menu-list">${btn(icon('shield') + ' Contrôler la configuration', 'quality-open', 'quiet small')}${btn(icon('layers') + ' Comparer avec un autre parcours', 'compare-flow', 'quiet small', `data-index="${ui.flow}"`)}${f.media === 'messaging' || ui.liveActivity?.enabled ? '' : liveActivityToggle(false)}${f.media === 'messaging' ? '' : btn(icon('phone') + ' Activité du numéro', 'open-activity', 'quiet small', `data-index="${ui.flow}"`)}</div></details>${isReference ? btn(icon('copy') + ' Créer un parcours', 'clone-start', 'primary small') : btn(icon('copy') + ' Reprendre depuis…', 'copy-start', 'primary small')}</div></header>
  <div class="studio-context"><div class="studio-reference">${studioReference(f, r)}</div>${audienceSwitch()}<div class="studio-context-actions">${draftCount ? tag(plural(draftCount, 'étape') + ' en brouillon', 'amber') : ''}${missing ? tag(plural(missing, 'destination') + ' à vérifier', 'amber', 'alert') : ''}${r.role === 'declination' ? btn('Voir l’impact', 'impact-open', 'quiet small', `data-id="${esc(f.id)}"`) : ''}${ui.audience === 'admin' ? btn(r.role === 'none' ? 'Définir la référence' : 'Gérer la référence', 'declare-start', 'quiet small', `data-id="${esc(f.id)}"`) : ''}</div></div>
+ ${f.media === 'messaging' ? messagingEntryDetails(f) : ''}
  ${ui.audience === 'admin' ? `<div class="designer-launchbar"><div><strong>Structure du parcours</strong><span>Ajout d’un bloc ou modification d’une liaison.</span></div><div>${btn('+ Ajouter un bloc', 'designer-insert', 'primary small')}${btn(icon('link') + ' Raccorder les étapes', 'designer-connect', 'secondary small')}</div></div>` : ''}
  ${ui.liveActivity?.enabled ? `<div class="live-map-workspace">${liveActivityView(ui.liveActivity)}</div>` : journeyWorkspace(f)}`;
 }
@@ -1476,6 +1504,10 @@ function pickerOptions() {
   const flows = ui.inventory.flows
     .map((_, i) => ({ f: flowAt(i), i }))
     .filter(({ i }) => (ui.picker === 'left' ? i !== ui.right : i !== ui.left))
+    .filter(({ f }) => {
+      const other = ui[ui.picker === 'left' ? 'right' : 'left'];
+      return other == null || (f.media || 'voice') === (flowAt(other)?.media || 'voice');
+    })
     .filter(({ f }) =>
       normalizeSelectSearch([displayTitle(f), f.key, f.division, f.dnis].join(' ')).includes(
         normalizeSelectSearch(ui.pickerQuery),
@@ -1771,7 +1803,7 @@ function applyBlocks() {
         'Une étape comporte une saisie non enregistrée. Enregistrez-la avant de modifier les raccordements.',
       );
   ui.snapshot = nextSnapshot;
-  ui.inventory = buildVoiceInventory(nextSnapshot);
+  ui.inventory = buildJourneyInventory(nextSnapshot);
   ui.drafts = nextDrafts;
   ui.draftRevision++;
   for (const summary of plan.summaries) {
@@ -1980,7 +2012,7 @@ function createdViews() {
   return [...ui.creations.entries()]
     .map(
       ([id, c]) =>
-        `<section class="settings-panel"><div class="eyebrow">NOUVEAU PARCOURS · BROUILLON</div><h2>${esc(c.name)}</h2><p>${c.kind === 'new-flow' ? 'Parcours créé dans le designer WOLF V5.' : `${c.nodeCount} étapes et leurs embranchements repris depuis le Core Model.`}</p><p>${plural(c.referencesRetained.length, 'ressource associée conservée', 'ressources associées conservées')} · ${plural(c.needsReview.length, 'point')} à vérifier.</p>${btn('Ouvrir le parcours', 'open-flow', 'secondary small', `data-index="${ui.inventory.flows.findIndex((f) => f.id === id)}"`)}</section>`,
+        `<section class="settings-panel"><div class="eyebrow">NOUVEAU PARCOURS · BROUILLON</div><h2>${esc(c.name)}</h2><p>${c.kind === 'new-flow' ? 'Parcours créé dans le designer WOLF.' : `${c.nodeCount} étapes et leurs embranchements repris depuis le Core Model.`}</p><p>${plural(c.referencesRetained.length, 'ressource associée conservée', 'ressources associées conservées')} · ${plural(c.needsReview.length, 'point')} à vérifier.</p>${btn('Ouvrir le parcours', 'open-flow', 'secondary small', `data-index="${ui.inventory.flows.findIndex((f) => f.id === id)}"`)}</section>`,
     )
     .join('');
 }
@@ -1990,15 +2022,15 @@ function settingsView() {
     head(
       'SOURCE DES DONNÉES',
       'Connexion à Genesys',
-      'Chargement des parcours voix depuis Genesys Cloud ou depuis un export local.',
+      'Chargement des parcours Voix et Messaging depuis Genesys Cloud ou depuis un export local.',
     ) +
-    `<section class="settings-panel"><div class="connection-state">${icon('link')}<div><h2>Genesys Cloud · Dublin</h2><p>${getAccessToken() ? 'Compte Genesys connecté.' : 'Connexion avec un compte Genesys autorisé à lire les Data Tables WOLF.'}</p></div>${tag(getAccessToken() ? 'Connecté' : 'À connecter', getAccessToken() ? 'green' : 'neutral')}</div>${ui.reloadConfirm ? notice(`Actualiser remplacera vos brouillons, vos saisies en cours et vos choix de comparaison par les parcours relus dans Genesys. ${btn('Conserver mon travail', 'refresh-cancel', 'secondary small')} ${btn('Actualiser et remplacer', 'refresh-confirm', 'small')}`, 'warning') : ''}<div class="page-actions">${getAccessToken() ? btn('Actualiser les parcours', 'refresh', 'primary') + btn('Déconnecter cette application', 'logout', 'quiet') : btn('Se connecter avec Genesys', 'login', 'primary')}</div><details class="details"><summary>Configuration de la connexion</summary><div class="field-grid"><div class="field span2"><label for="client-id">Identifiant public de l’application</label><input id="client-id" value="${esc(config.clientId)}"></div><div class="field span2"><label for="redirect-uri">Adresse de retour</label><input id="redirect-uri" value="${esc(config.redirectUri)}"></div></div><p class="helper">Région Dublin · accès selon les autorisations du compte Genesys</p></details></section><section class="settings-panel"><h2>Export local</h2><p>Chargement d’un export JSON ou CSV des tables WOLF V5, pour consulter ses parcours sans connexion.</p><div class="field"><label for="source-files">Fichiers JSON ou CSV</label><input type="file" id="source-files" accept=".json,.csv" multiple></div><details class="details"><summary>Options d’import CSV</summary><div class="field"><label for="source-table">Nom de la table pour un CSV</label><input id="source-table" placeholder="Nom exact de la table exportée"></div></details>${hasLocalWork() ? notice('Charger une autre source remplacera les adaptations, saisies et choix de cette session.', 'warning') : ''}${btn('Ouvrir les parcours de l’export', 'import', 'secondary')}</section>`
+    `<section class="settings-panel"><div class="connection-state">${icon('link')}<div><h2>Genesys Cloud · Dublin</h2><p>${getAccessToken() ? 'Compte Genesys connecté.' : 'Connexion avec un compte Genesys autorisé à lire les Data Tables WOLF.'}</p></div>${tag(getAccessToken() ? 'Connecté' : 'À connecter', getAccessToken() ? 'green' : 'neutral')}</div>${ui.reloadConfirm ? notice(`Actualiser remplacera vos brouillons, vos saisies en cours et vos choix de comparaison par les parcours relus dans Genesys. ${btn('Conserver mon travail', 'refresh-cancel', 'secondary small')} ${btn('Actualiser et remplacer', 'refresh-confirm', 'small')}`, 'warning') : ''}<div class="page-actions">${getAccessToken() ? btn('Actualiser les parcours', 'refresh', 'primary') + btn('Déconnecter cette application', 'logout', 'quiet') : btn('Se connecter avec Genesys', 'login', 'primary')}</div><details class="details"><summary>Configuration de la connexion</summary><div class="field-grid"><div class="field span2"><label for="client-id">Identifiant public de l’application</label><input id="client-id" value="${esc(config.clientId)}"></div><div class="field span2"><label for="redirect-uri">Adresse de retour</label><input id="redirect-uri" value="${esc(config.redirectUri)}"></div></div><p class="helper">Région Dublin · accès selon les autorisations du compte Genesys</p></details></section><section class="settings-panel"><h2>Export local</h2><p>Chargement d’un export JSON ou CSV des tables WOLF Voix ou Messaging, pour consulter ses parcours sans connexion.</p><div class="field"><label for="source-files">Fichiers JSON ou CSV</label><input type="file" id="source-files" accept=".json,.csv" multiple></div><details class="details"><summary>Options d’import CSV</summary><div class="field"><label for="source-table">Nom de la table pour un CSV</label><input id="source-table" placeholder="Nom exact de la table exportée"></div></details>${hasLocalWork() ? notice('Charger une autre source remplacera les adaptations, saisies et choix de cette session.', 'warning') : ''}${btn('Ouvrir les parcours de l’export', 'import', 'secondary')}</section>`
   );
 }
 function configurationPage() {
   ui.audience = 'admin';
   const f = current();
-  if (!f) return empty('Aucune table V5', 'Chargez les configurations Genesys.');
+  if (!f) return empty('Aucune table WOLF', 'Chargez les configurations Genesys.');
   if (ui.node >= f.nodes.length) ui.node = 0;
   return configurationView(
     ui.snapshot,
@@ -2012,7 +2044,7 @@ function diagnosticView() {
     head(
       'ADMINISTRATION',
       'Diagnostic technique',
-      'Périmètre WOLF V5 · les tables V4 sont exclues de cet espace.',
+      'Périmètre WOLF Voix V5 et Messaging V1.',
       btn(icon('download') + ' Exporter la source', 'export-source', 'secondary'),
     ) +
     governancePanel() +
@@ -2101,7 +2133,7 @@ function render() {
   if (!ui.inventory && !ui.loading) ui.view = 'settings';
   let body;
   if (ui.loading)
-    body = `<div class="loading-view"><span class="loading-dot"></span><h1>Chargement des parcours</h1><p>${esc(ui.progress || 'Lecture des configurations voix…')}</p></div>`;
+    body = `<div class="loading-view"><span class="loading-dot"></span><h1>Chargement des parcours</h1><p>${esc(ui.progress || 'Lecture des configurations WOLF…')}</p></div>`;
   else if (ui.clone) body = cloneView();
   else
     body =
@@ -2477,6 +2509,7 @@ async function refresh(force = false) {
   };
   try {
     const snapshot = await loadFromGenesys(token, {
+      media: 'all',
       signal: controller.signal,
       concurrency: 3,
       onCatalogue: installCatalogue,
@@ -2486,7 +2519,7 @@ async function refresh(force = false) {
         if (event.phase === 'table-complete') ui.sourceLoading.loaded = event.tablesLoaded;
         const count = $('#source-load-count');
         if (count)
-          count.textContent = `${ui.sourceLoading.loaded} / ${ui.sourceLoading.total} tables voix`;
+          count.textContent = `${ui.sourceLoading.loaded} / ${ui.sourceLoading.total} tables WOLF`;
       },
     });
     assertCurrent();
@@ -2504,7 +2537,7 @@ async function refresh(force = false) {
         },
       });
       ui.snapshot = liveSnapshot;
-      ui.inventory = buildVoiceInventory(liveSnapshot);
+      ui.inventory = buildJourneyInventory(liveSnapshot);
       ui.activityBaseline = ui.inventory;
       workingCache = null;
       ui.draftRevision++;
@@ -2532,7 +2565,7 @@ async function refresh(force = false) {
 function sourceLoadingNotice() {
   if (ui.loading || !sourceIncomplete()) return '';
   const state = ui.sourceLoading || {};
-  const count = `<small id="source-load-count">${state.loaded || 0} / ${state.total || 0} tables voix</small>`;
+  const count = `<small id="source-load-count">${state.loaded || 0} / ${state.total || 0} tables WOLF</small>`;
   // Un chargement qui se passe bien tient en une ligne discrète ; seul un échec mérite un encadré et une action.
   if (state.error)
     return `<div class="source-loading-status failed" role="alert"><div><strong>Chargement incomplet</strong><p>${esc(state.error)}</p>${count}</div>${btn('Réessayer', 'source-retry', 'secondary small')}</div>`;
@@ -2622,13 +2655,15 @@ function captureWizardForm() {
     const value =
       input.type === 'checkbox'
         ? input.checked
-        : kind === 'audio-tts'
-          ? input.value
-            ? 'tts:' + input.value
-            : ''
-          : kind === 'boolean'
-            ? input.value === 'true'
-            : input.value;
+        : kind === 'message'
+          ? messageStoredValue(value)
+          : kind === 'audio-tts'
+            ? input.value
+              ? 'tts:' + input.value
+              : ''
+            : kind === 'boolean'
+              ? input.value === 'true'
+              : input.value;
     const target =
       input.name === 'wizard-welcome'
         ? form.welcomeValues
@@ -2752,16 +2787,28 @@ async function applyWizard() {
 function designerContext() {
   const snapshot = applyDraftRows(ui.snapshot, ui.drafts),
     flow = ui.designer?.mode === 'create' ? null : current();
-  return { snapshot, flow, options: designerOptions({ snapshot, flow }) };
+  return {
+    snapshot,
+    flow,
+    options: designerOptions({
+      snapshot,
+      flow,
+      media: flow?.media || ui.designer?.form.media || ui.catalogueMedia,
+    }),
+  };
 }
 function openDesigner(mode) {
   if (ui.pendingFields.size)
     throw Error('Enregistrez vos réglages en cours avant de modifier la structure du parcours.');
   const snapshot = applyDraftRows(ui.snapshot, ui.drafts),
     flow = mode === 'create' ? null : current(),
-    options = designerOptions({ snapshot, flow });
+    options = designerOptions({ snapshot, flow, media: flow?.media || ui.catalogueMedia });
   const capability = options.catalogue.find(
-    (c) => c.available && (mode === 'create' ? c.type === 'inboundcall' : c.type !== 'inboundcall'),
+    (c) =>
+      c.available &&
+      (mode === 'create'
+        ? ['inboundcall', 'segment'].includes(c.type)
+        : !['inboundcall', 'segment'].includes(c.type)),
   );
   const selected = current()?.nodes[ui.node];
   const placement =
@@ -2770,6 +2817,7 @@ function openDesigner(mode) {
     mode,
     returnView: ui.view === 'flow' ? 'flow' : 'catalogue',
     form: {
+      media: flow?.media || ui.catalogueMedia,
       type: capability?.type || '',
       tableId: capability?.tableId || '',
       name: '',
@@ -2837,13 +2885,15 @@ function captureDesignerForm() {
       continue;
     }
     form.values[key] =
-      kind === 'audio-tts'
-        ? 'tts:' + value
-        : kind === 'boolean'
-          ? value === 'true'
-          : ['integer', 'number'].includes(kind)
-            ? Number(value)
-            : value;
+      kind === 'message'
+        ? messageStoredValue(value)
+        : kind === 'audio-tts'
+          ? 'tts:' + value
+          : kind === 'boolean'
+            ? value === 'true'
+            : ['integer', 'number'].includes(kind)
+              ? Number(value)
+              : value;
   }
   for (const [key, values] of skills)
     if (values.length) form.values[key] = values.join(';');
@@ -3774,7 +3824,7 @@ async function action(name, el) {
             : []),
         ],
       });
-      ui.inventory = buildVoiceInventory(ui.snapshot);
+      ui.inventory = buildJourneyInventory(ui.snapshot);
       ui.drafts = new Map(recovered.drafts);
       ui.pendingFields = new Map(recovered.pendingFields);
       ui.creations = new Map(recovered.creations);
@@ -3899,6 +3949,12 @@ async function action(name, el) {
       break;
     case 'toggle-configured':
       ui.onlyConfigured = !ui.onlyConfigured;
+      render();
+      break;
+    case 'catalogue-media':
+      ui.catalogueMedia = el.dataset.media === 'messaging' ? 'messaging' : 'voice';
+      ui.catalogueModel = '';
+      ui.query = '';
       render();
       break;
     case 'catalogue-reset':
@@ -4303,7 +4359,7 @@ async function action(name, el) {
             rows: table.rows.filter((row) => !addedIds.has(`${table.id}:${row.key}`)),
           })),
         });
-        ui.inventory = buildVoiceInventory(ui.snapshot);
+        ui.inventory = buildJourneyInventory(ui.snapshot);
         ui.blockCreations.clear();
         ui.creations.clear();
         if (ui.governance?.remoteRegistry) ui.registry = ui.governance.remoteRegistry;
@@ -4488,7 +4544,7 @@ async function action(name, el) {
         throw Error('Les données ont changé. Revenez à la préparation de la copie.');
       const kind = ui.clone.form.kind;
       ui.snapshot = result.snapshot;
-      ui.inventory = buildVoiceInventory(ui.snapshot);
+      ui.inventory = buildJourneyInventory(ui.snapshot);
       ui.creations.set(result.flowId, result.summary);
       ui.draftRevision++;
       await commitRegistry(result.registry);
@@ -4818,8 +4874,8 @@ function acceptPublishedRows(run) {
     });
   ui.snapshot = replace(ui.snapshot);
   liveSnapshot = replace(liveSnapshot);
-  ui.inventory = buildVoiceInventory(ui.snapshot);
-  ui.activityBaseline = buildVoiceInventory(liveSnapshot);
+  ui.inventory = buildJourneyInventory(ui.snapshot);
+  ui.activityBaseline = buildJourneyInventory(liveSnapshot);
   for (const entry of verified) {
     const draft = rebaseDraft(ui.drafts.get(entry.id), entry.after);
     if (draft) ui.drafts.set(entry.id, draft);

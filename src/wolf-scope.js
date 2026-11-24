@@ -1,3 +1,4 @@
+import { isMessageTable } from './media-profiles.js';
 /** Active Studio perimeter. Engine version is independent of Core Model labels. */
 export const isWolfV5VoiceTable = (name) =>
   typeof name === 'string' && /^W_.+_v5$/i.test(name) && !/MESSAGE/i.test(name);
@@ -40,5 +41,21 @@ export function registryInScope(registry, source) {
     declinations: registry.declinations.filter(
       (item) => allowed(item.flowId) && versions.has(item.baseFlowId),
     ),
+  };
+}
+
+export const isStudioTable = (name) => isWolfV5VoiceTable(name) || isMessageTable(name);
+export function selectStudioScope(snapshot) {
+  const selected = selectWolfV5(snapshot);
+  return {
+    ...selected,
+    source: {
+      ...selected.source,
+      media: 'all',
+      excludedScopeTables:
+        (snapshot.source?.excludedScopeTables || 0) +
+        snapshot.tables.filter((t) => !isStudioTable(t.name)).length,
+    },
+    tables: snapshot.tables.filter((t) => isStudioTable(t.name)),
   };
 }

@@ -1,3 +1,4 @@
+import { isMessageNode, messageTextField, messageEditorValue } from './media-profiles.js';
 import { booleanSwitchSpec, booleanControl } from './boolean-control.js';
 import { esc, icon, btn, head, notice } from './ui-kit.js';
 import { fieldLabel } from './draft-fields.js';
@@ -19,6 +20,10 @@ const text = (value) =>
 const icons = {
   inboundcall: 'phone',
   menu: 'menu',
+  segment: 'message',
+  quickreplies: 'menu',
+  carousel: 'layers',
+  waitforinput: 'message',
   service: 'people',
   schedulegroup: 'clock',
   decision: 'diff',
@@ -29,10 +34,13 @@ const icons = {
 const descriptions = {
   inboundcall: 'Un numéro, un accueil et la première étape.',
   menu: 'Orienter l’appel avec les touches du téléphone.',
-  service: 'Distribuer les appels à une équipe.',
+  quickreplies: 'Proposer des choix sous forme de boutons.',
+  carousel: 'Présenter plusieurs cartes et leurs actions.',
+  waitforinput: 'Recueillir une réponse écrite du client.',
+  service: 'Distribuer les demandes à une équipe.',
   schedulegroup: 'Adapter le parcours aux horaires.',
   decision: 'Choisir une branche selon une condition.',
-  ratiodistrib: 'Répartir les appels entre plusieurs branches.',
+  ratiodistrib: 'Répartir les demandes entre plusieurs branches.',
   bot: 'Passer par un assistant conversationnel.',
   transfercallflow: 'Rejoindre un autre flow Genesys.',
 };
@@ -189,6 +197,8 @@ function schemaField(field, form, entry, context) {
     control = `<select ${attrs}><option value=""${selected(value, '')}>${field.required ? 'Choisir…' : 'Non renseigné'}</option>${value && !options.some((o) => String(o.value) === String(value)) ? `<option value="${esc(value)}" selected disabled>${esc(value)} · à vérifier</option>` : ''}${options.map((option) => `<option value="${esc(option.value)}"${selected(value, option.value)} ${option.disabled ? 'disabled' : ''}>${esc(option.label)}</option>`).join('')}</select>`;
   else if (['integer', 'number'].includes(type))
     control = `<input ${attrs} type="number" value="${esc(value ?? '')}" step="${type === 'integer' ? '1' : 'any'}" ${Number.isFinite(rule.minimum) ? `min="${rule.minimum}"` : ''} ${Number.isFinite(rule.maximum) ? `max="${rule.maximum}"` : ''}>`;
+  else if (isMessageNode({ tableName: entry.tableName }) && messageTextField(field.key))
+    control = `<textarea id="${id}" name="designer-value" data-field="${esc(field.key)}" data-value-type="message" rows="3">${esc(messageEditorValue(value))}</textarea>`;
   else
     control = `<input ${attrs} type="text" value="${esc(value ?? '')}" ${Number.isInteger(rule.maxLength) ? `maxlength="${rule.maxLength}"` : ''}>`;
   return `<div class="designer-field"><label for="${id}">${esc(label)}${field.required ? ' <span aria-label="obligatoire">*</span>' : ''}</label>${control}${rule.description ? `<small>${esc(rule.description)}</small>` : ''}</div>`;
@@ -199,26 +209,28 @@ function schemaFields(entry, form, { create = false, ...context } = {}) {
   );
   const required = fields.filter((f) => f.required),
     optional = fields.filter((f) => !f.required);
-  return `${required.length ? `<section class="designer-section"><div class="designer-section-title">${icon('shield')}<div><h2>Réglages nécessaires</h2><p>Ces valeurs sont requises par la table V5 sélectionnée.</p></div></div><div class="designer-fields">${required.map((f) => schemaField(f, form, entry, context)).join('')}</div></section>` : ''}${optional.length ? `<details class="designer-optional"><summary>Réglages complémentaires <span>${optional.length}</span></summary><p>Vous pourrez aussi les ajuster dans les réglages de l’étape.</p><div class="designer-fields">${optional.map((f) => schemaField(f, form, entry, context)).join('')}</div></details>` : ''}`;
+  return `${required.length ? `<section class="designer-section"><div class="designer-section-title">${icon('shield')}<div><h2>Réglages nécessaires</h2><p>Ces valeurs sont requises par la table WOLF sélectionnée.</p></div></div><div class="designer-fields">${required.map((f) => schemaField(f, form, entry, context)).join('')}</div></section>` : ''}${optional.length ? `<details class="designer-optional"><summary>Réglages complémentaires <span>${optional.length}</span></summary><p>Vous pourrez aussi les ajuster dans les réglages de l’étape.</p><div class="designer-fields">${optional.map((f) => schemaField(f, form, entry, context)).join('')}</div></details>` : ''}`;
 }
 function palette(catalogue, form) {
-  return `<aside class="designer-palette"><div class="eyebrow">BIBLIOTHÈQUE V5</div><h2>Quel bloc ajouter ?</h2><div class="designer-block-list">${catalogue
-    .filter((c) => c.type !== 'inboundcall')
+  return `<aside class="designer-palette"><div class="eyebrow">BIBLIOTHÈQUE WOLF</div><h2>Quel bloc ajouter ?</h2><div class="designer-block-list">${catalogue
+    .filter((c) => !['inboundcall', 'segment'].includes(c.type))
     .map(
       (entry) =>
-        `<button class="designer-block ${(Boolean(form.tableId) && entry.tableId === form.tableId) || (!form.tableId && entry.type === form.type) ? 'selected' : ''}" data-action="designer-type" data-type="${esc(entry.type)}" data-table="${esc(entry.tableId || '')}" aria-pressed="${(Boolean(form.tableId) && entry.tableId === form.tableId) || (!form.tableId && entry.type === form.type)}" ${entry.available === false ? 'disabled' : ''}><span class="designer-block-icon">${icon(icons[entry.type] || 'layers')}</span><span><strong>${esc(entry.label)}</strong><small>${esc(entry.available === false ? entry.reason || 'Table V5 indisponible' : descriptions[entry.type] || entry.tableName)}</small></span>${entry.available !== false ? icon('chevron') : ''}</button>`,
+        `<button class="designer-block ${(Boolean(form.tableId) && entry.tableId === form.tableId) || (!form.tableId && entry.type === form.type) ? 'selected' : ''}" data-action="designer-type" data-type="${esc(entry.type)}" data-table="${esc(entry.tableId || '')}" aria-pressed="${(Boolean(form.tableId) && entry.tableId === form.tableId) || (!form.tableId && entry.type === form.type)}" ${entry.available === false ? 'disabled' : ''}><span class="designer-block-icon">${icon(icons[entry.type] || 'layers')}</span><span><strong>${esc(entry.label)}</strong><small>${esc(entry.available === false ? entry.reason || 'Table WOLF indisponible' : descriptions[entry.type] || entry.tableName)}</small></span>${entry.available !== false ? icon('chevron') : ''}</button>`,
     )
     .join('')}</div></aside>`;
 }
 function identity(mode, entry, form, catalogue, context) {
   const create = mode === 'create',
-    entries = catalogue.filter((c) => c.type === 'inboundcall' && c.available !== false);
-  return `<section class="designer-section"><div class="designer-section-title">${icon(create ? 'phone' : icons[entry?.type] || 'layers')}<div><h2>${create ? 'Identifier le parcours' : 'Nom de cette étape'}</h2><p>${create ? 'Le numéro identifie l’entrée WOLF. Le nom permet à votre équipe de la retrouver.' : esc(entry?.label || 'Nouveau bloc')}</p></div></div><div class="designer-fields">${input({ id: 'designer-name', label: create ? 'Nom du parcours' : 'Nom de l’étape', value: form.name, required: true, extra: 'autocomplete="off"' })}${create ? input({ id: 'designer-phone', label: 'Numéro d’entrée', value: form.phone, type: 'tel', required: true, helper: 'Format international, par exemple +33123456789.', extra: 'autocomplete="off" inputmode="tel"' }) : input({ id: 'designer-key', label: 'Identifiant de l’étape', value: form.key, required: true, helper: 'Une clé unique dans la table V5 de ce bloc.', extra: 'autocomplete="off"' })}${create && entry?.divisionSchema ? resourceField({ key: 'DIVISION', label: 'Division', required: Boolean(entry.divisionRequired) }, form, entry, form.division, context) : ''}${create && entries.length > 1 ? selector({ id: 'designer-table', label: 'Table d’entrée V5', value: form.tableId, options: entries.map((c) => ({ value: c.tableId, label: c.tableName })), required: true }) : ''}</div></section>`;
+    entries = catalogue.filter(
+      (c) => ['inboundcall', 'segment'].includes(c.type) && c.available !== false,
+    );
+  return `<section class="designer-section"><div class="designer-section-title">${icon(create ? 'phone' : icons[entry?.type] || 'layers')}<div><h2>${create ? 'Identifier le parcours' : 'Nom de cette étape'}</h2><p>${create ? (form.media === 'messaging' ? 'Le segment identifie le parcours. Plusieurs points d’entrée peuvent le réutiliser.' : 'Le numéro identifie l’entrée WOLF. Le nom permet à votre équipe de la retrouver.') : esc(entry?.label || 'Nouveau bloc')}</p></div></div><div class="designer-fields">${input({ id: 'designer-name', label: create ? 'Nom du parcours' : 'Nom de l’étape', value: form.name, required: true, extra: 'autocomplete="off"' })}${create ? input({ id: 'designer-phone', label: form.media === 'messaging' ? 'Segment d’entrée' : 'Numéro d’entrée', value: form.phone, type: form.media === 'messaging' ? 'text' : 'tel', required: true, helper: form.media === 'messaging' ? 'Clé utilisée par INITIAL_SEGMENT ou par le nom du déploiement Messenger.' : 'Format international, par exemple +33123456789.', extra: 'autocomplete="off"' }) : input({ id: 'designer-key', label: 'Identifiant de l’étape', value: form.key, required: true, helper: 'Une clé unique dans la table WOLF de ce bloc.', extra: 'autocomplete="off"' })}${create && entry?.divisionSchema ? resourceField({ key: 'DIVISION', label: 'Division', required: Boolean(entry.divisionRequired) }, form, entry, form.division, context) : ''}${create && entries.length > 1 ? selector({ id: 'designer-table', label: 'Table d’entrée V5', value: form.tableId, options: entries.map((c) => ({ value: c.tableId, label: c.tableName })), required: true }) : ''}</div></section>`;
 }
 function insertion(entry, form, options) {
   const placement = list(options.placements).find((p) => p.id === form.placementId),
     outlets = list(entry?.outlets);
-  return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Placer le bloc dans le parcours</h2><p>Choisissez une branche, puis la sortie du nouveau bloc qui reprend sa suite.</p></div></div><div class="designer-fields">${selector({ id: 'designer-placement', label: 'Après quelle étape et quelle branche ?', value: form.placementId, options: list(options.placements).map((p) => ({ value: p.id, label: p.label })), required: true, placeholder: 'Choisir la branche à modifier' })}${selector({ id: 'designer-continuation', label: 'Sortie qui conserve la suite actuelle', value: form.continuationField, options: outlets.map((o) => ({ value: o.field, label: o.label })), required: true, placeholder: 'Choisir la sortie du nouveau bloc' })}</div>${placement ? `<div class="designer-route-preview"><span>${esc(placement.label)}</span>${icon('chevron')}<strong>${esc(form.name || entry?.label || 'Nouveau bloc')}</strong>${icon('chevron')}<span>Suite actuelle conservée</span></div>` : ''}<p class="designer-note">Les autres sorties non renseignées termineront l’appel. Vous pourrez les raccorder à d’autres blocs après l’ajout.</p></section>`;
+  return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Placer le bloc dans le parcours</h2><p>Choisissez une branche, puis la sortie du nouveau bloc qui reprend sa suite.</p></div></div><div class="designer-fields">${selector({ id: 'designer-placement', label: 'Après quelle étape et quelle branche ?', value: form.placementId, options: list(options.placements).map((p) => ({ value: p.id, label: p.label })), required: true, placeholder: 'Choisir la branche à modifier' })}${selector({ id: 'designer-continuation', label: 'Sortie qui conserve la suite actuelle', value: form.continuationField, options: outlets.map((o) => ({ value: o.field, label: o.label })), required: true, placeholder: 'Choisir la sortie du nouveau bloc' })}</div>${placement ? `<div class="designer-route-preview"><span>${esc(placement.label)}</span>${icon('chevron')}<strong>${esc(form.name || entry?.label || 'Nouveau bloc')}</strong>${icon('chevron')}<span>Suite actuelle conservée</span></div>` : ''}<p class="designer-note">${options.media === 'messaging' ? 'Les boutons sans libellé ne sont pas proposés. Les autres sorties doivent être vérifiées avant publication.' : 'Les autres sorties non renseignées termineront l’appel.'} Vous pourrez les raccorder à d’autres blocs après l’ajout.</p></section>`;
 }
 function routeEditor(form, options) {
   const destinations = list(options.destinations).map((d) => ({ value: d.nodeId, label: d.label }));
@@ -230,7 +242,7 @@ function routeEditor(form, options) {
       ? form.destination
       : form.destination?.nodeId ||
         (form.destination?.type ? 'terminal:' + form.destination.type : '');
-  return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Modifier la suite d’une branche</h2><p>La destination choisie remplace celle de cette branche.</p></div></div><div class="designer-fields">${selector({ id: 'designer-route', label: 'Étape et branche à raccorder', value: placement?.id || form.placementId, options: list(options.placements).map((p) => ({ value: p.id, label: p.label })), required: true })}${selector({ id: 'designer-destination', label: 'Nouvelle destination', value: destination, options: [...destinations, { value: 'terminal:disconnect', label: 'Terminer l’appel' }, ...(list(options.returnAllowedNodes).includes(placement?.fromId) ? [{ value: 'terminal:next', label: 'Revenir au cycle d’attente' }] : [])], required: true })}</div>${placement ? `<div class="designer-current-route"><small>Destination actuelle</small><strong>${esc(placement.currentTarget || placement.currentType || 'Non renseignée')}</strong></div>` : ''}</section>`;
+  return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Modifier la suite d’une branche</h2><p>La destination choisie remplace celle de cette branche.</p></div></div><div class="designer-fields">${selector({ id: 'designer-route', label: 'Étape et branche à raccorder', value: placement?.id || form.placementId, options: list(options.placements).map((p) => ({ value: p.id, label: p.label })), required: true })}${selector({ id: 'designer-destination', label: 'Nouvelle destination', value: destination, options: [...destinations, { value: 'terminal:disconnect', label: options.media === 'messaging' ? 'Terminer la conversation' : 'Terminer l’appel' }, ...(list(options.returnAllowedNodes).includes(placement?.fromId) ? [{ value: 'terminal:next', label: 'Revenir au cycle d’attente' }] : [])], required: true })}</div>${placement ? `<div class="designer-current-route"><small>Destination actuelle</small><strong>${esc(placement.currentTarget || placement.currentType || 'Non renseignée')}</strong></div>` : ''}</section>`;
 }
 function planReview(plan, mode) {
   const created = list(plan?.createdRows),
@@ -275,7 +287,12 @@ export function designerView({
     entry = catalogue.find((c) =>
       form.tableId
         ? c.tableId === form.tableId
-        : c.type === (mode === 'create' ? 'inboundcall' : form.type),
+        : c.type ===
+          (mode === 'create'
+            ? form.media === 'messaging'
+              ? 'segment'
+              : 'inboundcall'
+            : form.type),
     );
   const title =
     mode === 'create'
@@ -298,13 +315,15 @@ export function designerView({
                 icon('phone') +
                 ' Entrée du parcours</span>' +
                 icon('chevron') +
-                '<span>Fin d’appel</span><p>Ajoutez ensuite vos blocs. La création du parcours ne provisionne pas le numéro téléphonique dans Genesys.</p></div>') +
+                (form.media === 'messaging'
+                  ? '<span>Fin de conversation</span><p>Ajoutez ensuite vos blocs. Le raccordement du site à Web Messenger reste à configurer dans Genesys.</p></div>'
+                  : '<span>Fin d’appel</span><p>Ajoutez ensuite vos blocs. La création du parcours ne provisionne pas le numéro téléphonique dans Genesys.</p></div>')) +
             schemaFields(entry, form, {
               create: mode === 'create',
               resourceStates,
               connected,
               participantData: options.participantData,
             })
-          : `<div class="designer-placeholder">${icon('layers')}<h2>${mode === 'insert' ? 'Choisissez un bloc pour commencer' : 'Table d’entrée indisponible'}</h2><p>${esc(entry?.reason || (mode === 'insert' ? 'La bibliothèque affiche les types V5 disponibles dans votre organisation.' : 'La table W_INBOUND_CALL_v5 et son schéma doivent être accessibles.'))}</p></div>`;
-  return `${head('DESIGNER WOLF V5', title, mode === 'create' ? 'Construisez un parcours à partir de son numéro d’entrée.' : flow?.name || flow?.key || 'Le parcours', btn(icon('close') + ' Fermer', 'designer-cancel', 'secondary'))}<section class="flow-designer"><ol class="designer-progress" aria-label="Étapes de préparation"><li class="${!review ? 'active' : ''}"><span>1</span>${mode === 'create' ? 'Définir le parcours' : 'Configurer le changement'}</li><li class="${review ? 'active' : ''}"><span>2</span>Vérifier et ajouter</li></ol>${errors.length ? `<div class="designer-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div></div>` : ''}<div class="designer-workspace ${mode === 'insert' && !review ? 'has-palette' : ''}">${mode === 'insert' && !review ? palette(catalogue, form) : ''}<div class="designer-main">${body}</div></div><footer class="designer-footer"><div>${icon(review ? 'shield' : 'layers')}<span>${review ? 'Le parcours sera modifiable avant publication.' : 'Préparez les étapes et leurs raccordements.'}</span></div><div>${review ? btn('Modifier les choix', 'designer-edit', 'secondary') : btn('Annuler', 'designer-cancel', 'quiet')}${review ? btn(mode === 'create' ? 'Créer le parcours' : 'Appliquer au parcours', 'designer-apply', 'primary', !plan?.ok || errors.length ? 'disabled' : '') : btn('Vérifier le résultat', 'designer-review', 'primary', !available ? 'disabled' : '')}</div></footer></section>`;
+          : `<div class="designer-placeholder">${icon('layers')}<h2>${mode === 'insert' ? 'Choisissez un bloc pour commencer' : 'Table d’entrée indisponible'}</h2><p>${esc(entry?.reason || (mode === 'insert' ? 'La bibliothèque affiche les types V5 disponibles dans votre organisation.' : form.media === 'messaging' ? 'La table W_INBOUND_MESSAGE_v1 et son schéma doivent être accessibles.' : 'La table W_INBOUND_CALL_v5 et son schéma doivent être accessibles.'))}</p></div>`;
+  return `${head(form.media === 'messaging' ? 'DESIGNER MESSAGING' : 'DESIGNER WOLF V5', title, mode === 'create' ? (form.media === 'messaging' ? 'Web Messaging · parcours indépendant de ses points d’entrée.' : 'Construisez un parcours à partir de son numéro d’entrée.') : flow?.name || flow?.key || 'Le parcours', btn(icon('close') + ' Fermer', 'designer-cancel', 'secondary'))}<section class="flow-designer"><ol class="designer-progress" aria-label="Étapes de préparation"><li class="${!review ? 'active' : ''}"><span>1</span>${mode === 'create' ? 'Définir le parcours' : 'Configurer le changement'}</li><li class="${review ? 'active' : ''}"><span>2</span>Vérifier et ajouter</li></ol>${errors.length ? `<div class="designer-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div></div>` : ''}<div class="designer-workspace ${mode === 'insert' && !review ? 'has-palette' : ''}">${mode === 'insert' && !review ? palette(catalogue, form) : ''}<div class="designer-main">${body}</div></div><footer class="designer-footer"><div>${icon(review ? 'shield' : 'layers')}<span>${review ? 'Le parcours sera modifiable avant publication.' : 'Préparez les étapes et leurs raccordements.'}</span></div><div>${review ? btn('Modifier les choix', 'designer-edit', 'secondary') : btn('Annuler', 'designer-cancel', 'quiet')}${review ? btn(mode === 'create' ? 'Créer le parcours' : 'Appliquer au parcours', 'designer-apply', 'primary', !plan?.ok || errors.length ? 'disabled' : '') : btn('Vérifier le résultat', 'designer-review', 'primary', !available ? 'disabled' : '')}</div></footer></section>`;
 }

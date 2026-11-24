@@ -1,4 +1,4 @@
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { workingInventory } from './working-inventory.js';
 import { nodeTitle } from './business.js';
 
@@ -43,7 +43,7 @@ export function applyDesignerDraft({
         label: nodeTitle(node),
       });
   }
-  const inventory = buildVoiceInventory(next),
+  const inventory = buildJourneyInventory(next),
     effective = workingInventory(next, nextDrafts);
   const flow = effective.flows.find((f) => f.id === plan.flowId);
   if (!flow || !flow.nodes.some((n) => n.id === plan.nodeId))

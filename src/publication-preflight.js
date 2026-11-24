@@ -5,7 +5,7 @@ import {
   validateParticipantDefinition,
 } from './participant-catalogue.js';
 /** Local preflight over the exact selected publication. Does not call or write Genesys. */
-import { buildVoiceInventory, normalizeSnapshot } from './data-source.js';
+import { buildJourneyInventory, normalizeSnapshot } from './data-source.js';
 import { inspectJourney } from './journey-quality.js';
 import { validatePublicationRow, stable } from './publication.js';
 import {
@@ -13,7 +13,8 @@ import {
   immutableV5Field,
   isRouteType,
   routeTargetKey,
-  targetTables,
+  targetTablesFor,
+  participantTableFor,
   localReferenceTable,
 } from './v5-fields.js';
 import { resourceForField } from './genesys-resources.js';
@@ -78,17 +79,20 @@ function dependencyIndex(snapshot) {
       if (isRouteType(field)) {
         const type = str(value).split('|')[0].trim().toLowerCase(),
           [key, ...extras] = str(row[routeTargetKey(field, row)]).split('|');
-        add(targetTables[type], key);
+        add(targetTablesFor({ tableName: table.name })[type], key);
         for (const extra of extras)
           if (/^pdata:/i.test(extra))
-            for (const key of extra.slice(6).split(';')) add('W_PARTICIPANT_DATA_v5', key);
+            for (const key of extra.slice(6).split(';'))
+              add(participantTableFor({ tableName: table.name }), key);
       } else add(localReferenceTable(field, { tableName: table.name, row }), str(value));
     }
     if (/^W_PARTICIPANT_DATA_v5$/i.test(table.name)) add(PARTICIPANT_CATALOGUE, str(row.key));
     if (/^W_INBOUND_CALL_v5$/i.test(table.name)) add(FLOW_INITIALIZATION, str(row.key));
     links.set(id, dependencies);
   }
-  const roots = [...nodes].filter(([, n]) => /^W_INBOUND_CALL_v5$/i.test(n.table.name));
+  const roots = [...nodes].filter(([, n]) =>
+    /^W_INBOUND_(CALL_v5|MESSAGE_v1)$/i.test(n.table.name),
+  );
   return roots.map(([id, { row }]) => {
     const reachable = new Set(),
       walk = [id];
@@ -330,8 +334,8 @@ export function publicationPreflight({
         'Aucun parcours numéroté n’est relié par les références statiques chargées. Cette configuration peut être utilisée par une subroutine, un bot ou une destination dynamique.',
       );
     try {
-      const baselineInventory = buildVoiceInventory(projected.base),
-        nextInventory = buildVoiceInventory(projected.next),
+      const baselineInventory = buildJourneyInventory(projected.base),
+        nextInventory = buildJourneyInventory(projected.next),
         affected = new Set(impacted.map((f) => f.id));
       for (const flow of nextInventory.flows.filter((f) => affected.has(f.id))) {
         const old = baselineInventory.flows.find((f) => f.id === flow.id),

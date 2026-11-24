@@ -10,7 +10,7 @@ import {
   validateParticipantValue,
 } from './participant-catalogue.js';
 /** Flow-entry participant data plans. No network writes; source rows remain immutable. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { validatePublicationRow, stable } from './publication.js';
 const text = (v) => String(v ?? '');
 import {
@@ -78,7 +78,7 @@ export function participantOptions(snapshot) {
 }
 export function flowDataModel(input, flowId) {
   const snapshot = normalizeSnapshot(input),
-    flow = buildVoiceInventory(snapshot).flows.find((f) => f.id === flowId);
+    flow = buildJourneyInventory(snapshot).flows.find((f) => f.id === flowId);
   if (!flow || flow.version !== '5') throw Error('Choisissez un parcours voix V5.');
   const entry = flow.nodes.find((n) => n.id === flow.id),
     dedicated = snapshot.tables.find((t) => t.name === FLOW_INITIALIZATION);

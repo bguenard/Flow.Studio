@@ -1,11 +1,15 @@
 import { esc, head, btn, icon, empty } from './ui-kit.js';
-import { isV5 } from './v5-fields.js';
+import { isEditableWolf as isV5 } from './v5-fields.js';
+import { MESSAGE_TABLES, isMessageTable } from './media-profiles.js';
 export function configurationFlow(snapshot, tableId) {
   const tables = (snapshot?.tables || []).filter((t) => isV5({ tableName: t.name }));
   const table =
     tables.find((t) => t.id === tableId) || tables.find((t) => t.rows.length) || tables[0];
   if (!table) return null;
   const types = {
+    ...Object.fromEntries(
+      Object.entries(MESSAGE_TABLES).map(([type, name]) => [name.toUpperCase(), type]),
+    ),
     W_INBOUND_CALL_V5: 'inboundcall',
     W_SERVICES_V5: 'service',
     W_MENU_V5: 'menu',
@@ -19,6 +23,7 @@ export function configurationFlow(snapshot, tableId) {
     id: 'configuration:' + table.id,
     name: table.name,
     tableId: table.id,
+    media: isMessageTable(table.name) ? 'messaging' : 'voice',
     edges: [],
     nodes: table.rows
       .map((row) => ({
@@ -41,9 +46,9 @@ export function configurationView(snapshot, flow, index, editor) {
     .sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }));
   return (
     head(
-      'ADMINISTRATION V5',
+      'ADMINISTRATION WOLF',
       'Configurations des blocs',
-      'Retrouvez les réglages de toutes les tables V5, y compris les configurations de rappel et les contrôles associés.',
+      'Retrouvez les réglages des tables Voix et Messaging, y compris les configurations de rappel et les contrôles associés.',
       btn('Retour aux parcours', 'nav', 'secondary', 'data-view="catalogue"'),
     ) +
     `<section class="settings-panel"><div class="field-grid"><div class="field"><label for="configuration-table">Type de configuration</label><select id="configuration-table">${tables.map((t) => `<option value="${esc(t.id)}" ${t.id === flow?.tableId ? 'selected' : ''}>${esc(t.name)} · ${t.rows.length} configuration(s)</option>`).join('')}</select></div><div class="field"><label for="configuration-row">Configuration à modifier</label><select id="configuration-row" ${!flow?.nodes.length ? 'disabled' : ''}>${flow?.nodes.map((n, i) => `<option value="${i}" ${i === index ? 'selected' : ''}>${esc(n.name)}${n.name !== n.key ? ' · ' + esc(n.key) : ''}</option>`).join('') || '<option>Aucune configuration dans cette table</option>'}</select></div></div></section>${editor ? `<section class="settings-panel configuration-editor"><p class="helper">Clé de la configuration : <strong>${esc(flow.nodes[index].key)}</strong></p>${editor}<div class="page-actions">${btn(icon('check') + ' Enregistrer le brouillon', 'save-node', 'primary', `data-node="${index}"`)}</div></section>` : empty('Aucune configuration', 'Cette table ne contient pas encore de ligne à modifier.')}`

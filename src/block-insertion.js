@@ -1,5 +1,6 @@
+import { MESSAGE_ROUTE_TABLES, MESSAGE_TABLES, messageLocalReference } from './media-profiles.js';
 /** Local insertion of one WOLF block and its attached dependencies. No remote writes. */
-import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { nodeTitle, branchLabel, humanText } from './business.js';
 import { coerceRowValue } from './draft-fields.js';
 import { sortDestinations } from './destination-order.js';
@@ -23,6 +24,7 @@ const external = new Set([
   'voicemailuser',
 ]);
 const tableTypes = {
+  1: MESSAGE_ROUTE_TABLES,
   4: {
     inboundcall: 'W_INBOUND_CALL_v4',
     service: 'W_DISTRIBUTION_v4',
@@ -89,7 +91,7 @@ function collect(input) {
   const kind = sourceNode.type === 'pdata' ? 'context' : 'route';
   if (
     kind === 'route' &&
-    (!tableTypes[version][sourceNode.type] || sourceNode.type === 'inboundcall')
+    (!tableTypes[version][sourceNode.type] || ['inboundcall', 'segment'].includes(sourceNode.type))
   )
     throw Error(
       'Ce bloc n’est pas une étape de routage insérable. Une entrée ou un contrôle isolé ne peut pas devenir une étape ordinaire.',
@@ -171,7 +173,10 @@ function collect(input) {
             if (keys.some((key) => !key))
               throw Error('Une référence de contexte client du bloc est vide.');
             for (const contextKey of keys) {
-              const found = lookup(`W_PARTICIPANT_DATA_v${version}`, contextKey);
+              const found = lookup(
+                version === '1' ? MESSAGE_TABLES.pdata : `W_PARTICIPANT_DATA_v${version}`,
+                contextKey,
+              );
               refs.push({
                 from: id,
                 field: destinationField,
@@ -197,18 +202,39 @@ function collect(input) {
           notices.add(
             'Les contrôles automatiques sont conservés ; leurs dépendances internes ne sont pas clonées.',
           );
-      } else if (menuFields.test(field) || (field === 'EXCEPTIONAL_DAYS_NAME' && version === '4')) {
+      } else if (
+        (version === '1' && messageLocalReference(field)) ||
+        menuFields.test(field) ||
+        (field === 'EXCEPTIONAL_DAYS_NAME' && version === '4')
+      ) {
         if (dynamic(raw)) {
           notices.add('Une dépendance est déterminée pendant l’appel ; sa valeur est conservée.');
           continue;
         }
         const isMenu = menuFields.test(field);
-        const found = lookup(isMenu ? `W_MENU_v${version}` : 'W_EXCEPTIONAL_DAYS_v4', raw);
+        const found = lookup(
+          version === '1'
+            ? messageLocalReference(field)
+            : isMenu
+              ? `W_MENU_v${version}`
+              : 'W_EXCEPTIONAL_DAYS_v4',
+          raw,
+        );
         refs.push({
           from: id,
           field,
           kind: 'direct',
-          to: visit(found.table, found.row, isMenu ? 'menu' : 'exceptionaldays'),
+          to: visit(
+            found.table,
+            found.row,
+            version === '1'
+              ? messageLocalReference(field) === MESSAGE_TABLES.card
+                ? 'card'
+                : 'quickreplies'
+              : isMenu
+                ? 'menu'
+                : 'exceptionaldays',
+          ),
         });
       } else if (/SUBROUTINES?_LIST/.test(field))
         notices.add(
@@ -225,7 +251,11 @@ function collect(input) {
     sourceRow = sourceTable?.rows.find((row) => text(row.key) === text(sourceNode.key));
   if (!sourceRow || JSON.stringify(sourceRow) !== JSON.stringify(sourceNode.row))
     throw Error('Le bloc source a changé depuis son affichage. Recalculez la comparaison.');
-  if (kind === 'context' && !/^W_PARTICIPANT_DATA_v[45]$/i.test(sourceTable.name))
+  if (
+    kind === 'context' &&
+    sourceTable.name.toUpperCase() !==
+      (version === '1' ? MESSAGE_TABLES.pdata : `W_PARTICIPANT_DATA_v${version}`).toUpperCase()
+  )
     throw Error('Le contexte sélectionné ne provient pas de la table de contexte WOLF attendue.');
   if (
     kind === 'route' &&
@@ -520,7 +550,9 @@ export function prepareBlockInsertion(input) {
     const anchorRows = draft.tables.find((table) => table.id === anchor.tableId).rows;
     anchorRows[anchorRows.findIndex((row) => text(row.key) === text(anchor.key))] = anchorRow;
     const projected = normalizeSnapshot(draft),
-      targetFlow = buildVoiceInventory(projected).flows.find((flow) => flow.id === input.right.id);
+      targetFlow = buildJourneyInventory(projected).flows.find(
+        (flow) => flow.id === input.right.id,
+      );
     if (!targetFlow?.nodes.some((node) => node.id === `${sourceNode.tableId}:${entryKey}`))
       throw Error(
         'Le bloc inséré n’est pas accessible depuis le parcours cible. Aucun changement préparé.',

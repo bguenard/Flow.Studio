@@ -1,3 +1,4 @@
+import { messageEditorValue } from './media-profiles.js';
 import { participantOptions } from './flow-data.js';
 import {
   PARTICIPANT_CATALOGUE,
@@ -6,12 +7,12 @@ import {
   participantOperators,
 } from './participant-catalogue.js';
 import { renderParticipantValue } from './participant-value-control.js';
-import { decisionOperatorLabels, isV5Decision } from './decision-fields.js';
+import { decisionOperatorLabels, isWolfDecision as isV5Decision } from './decision-fields.js';
 import { booleanSwitchSpec, booleanControl } from './boolean-control.js';
 import { esc } from './ui-kit.js';
 import { languageOptions } from './language-options.js';
 import { resourceEditor } from './resource-editor.js';
-import { referenceOptions, targetTables, routeTypeLabels } from './v5-fields.js';
+import { referenceOptions, targetTablesFor, routeLabelsFor } from './v5-fields.js';
 const text = (value) => (value == null ? '' : String(value));
 const selected = (a, b) => (String(a ?? '') === String(b ?? '') ? ' selected' : '');
 export function stepFieldView(
@@ -43,7 +44,9 @@ export function stepFieldView(
       ? (field.editorValue ?? field.value)
       : field.kind === 'audio'
         ? text(field.value).replace(/^tts:/i, '')
-        : field.value;
+        : field.kind === 'message'
+          ? messageEditorValue(field.value)
+          : field.value;
   const label = esc(field.label),
     required = field.required ? ' <span aria-label="obligatoire">*</span>' : '',
     attrs = `id="${id}" data-field="${esc(key)}" ${field.required ? 'required' : ''}`;
@@ -109,7 +112,7 @@ export function stepFieldView(
     const extras = text(value).split('|').slice(1),
       suffix = extras.length ? '|' + extras.join('|') : '';
     if (field.kind === 'route-type')
-      options = Object.entries(routeTypeLabels).map(([value, label]) => ({
+      options = Object.entries(routeLabelsFor(node)).map(([value, label]) => ({
         value: value + suffix,
         label,
       }));
@@ -117,8 +120,8 @@ export function stepFieldView(
       const route = text(pending[field.targetTypeKey] ?? node.row[field.targetTypeKey])
         .split('|')[0]
         .toLowerCase();
-      if (targetTables[route])
-        options = referenceOptions(targetTables[route], snapshot).map((o) => ({
+      if (targetTablesFor(node)[route])
+        options = referenceOptions(targetTablesFor(node)[route], snapshot).map((o) => ({
           ...o,
           label: admin
             ? o.label
@@ -175,7 +178,7 @@ export function stepFieldView(
     const normalized = field.kind === 'boolean' ? text(value).toLowerCase() : text(value);
     control = `<select ${attrs}><option value=""${selected(normalized, '')}>${field.required ? 'Choisir…' : 'Non renseigné'}</option>${normalized && !options.some((o) => String(o.value) === normalized) ? `<option value="${esc(normalized)}" selected disabled>${esc(normalized)} · valeur actuelle</option>` : ''}${options.map((o) => `<option value="${esc(o.value)}"${selected(normalized, o.value)} ${o.disabled ? 'disabled' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
   } else if (
-    ['pdata', 'controls', 'json', 'audio', 'list'].includes(field.kind) ||
+    ['pdata', 'controls', 'json', 'audio', 'message', 'list'].includes(field.kind) ||
     (composite && advanced)
   ) {
     if (field.kind === 'pdata')
@@ -183,6 +186,9 @@ export function stepFieldView(
         'Un attribut : nom==valeur. Plusieurs attributs : nom==valeur||autre==valeur. Les variables WOLF sont conservées.';
     if (field.kind === 'controls')
       helper = 'Contrôles exécutés dans cet ordre, séparés par ;. Exemple : CHECK_AGENT;CHECK_EWT.';
+    if (field.kind === 'message')
+      helper =
+        'Saisissez le texte à afficher. Les références cr:, pr:, var: et img: existantes sont conservées.';
     if (field.kind === 'json') helper = 'Valeur structurée JSON conforme au schéma de cette table.';
     control = `<textarea ${attrs} rows="3">${esc(field.kind === 'json' && typeof value === 'object' ? JSON.stringify(value, null, 2) : text(value))}</textarea>`;
   } else

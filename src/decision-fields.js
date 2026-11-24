@@ -18,11 +18,13 @@ export const decisionOperatorLabels = Object.freeze({
 });
 export const decisionOperators = Object.freeze(Object.keys(decisionOperatorLabels));
 export const isV5Decision = (node) => /^W_DECISION_v5$/i.test(node?.tableName || '');
+export const isWolfDecision = (node) =>
+  isV5Decision(node) || /^W_DECISION_MESSAGE_v1$/i.test(node?.tableName || '');
 export function validateDecision(row, { snapshot } = {}) {
   if (typeof row.PARTICIPANT_DATA_TO_CHECK !== 'string' || !row.PARTICIPANT_DATA_TO_CHECK.trim())
     throw Error('Renseignez l’attribut client à évaluer.');
   if (!decisionOperators.includes(row.DECISION_OPERATOR))
-    throw Error('Choisissez un opérateur de décision WOLF V5 valide.');
+    throw Error('Choisissez un opérateur de décision WOLF valide.');
   if (
     !['exist', 'empty'].includes(row.DECISION_OPERATOR) &&
     (row.DECISION_VALUE == null || !String(row.DECISION_VALUE).trim())

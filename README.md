@@ -1,6 +1,8 @@
 # Flow.Studio — WOLF Core Studio
 
-Application métier pour consulter, adapter, comparer, simuler et publier les parcours WOLF V5 dans Genesys Cloud Dublin.
+Application métier pour consulter, adapter, comparer et publier les parcours WOLF Voix V5 et Messaging V1 dans Genesys Cloud Dublin. La simulation et les statistiques d’appels restent propres à la voix.
+
+Le périmètre Web Messaging, les raccordements Architect et les limites des futurs canaux sont décrits dans [docs/MESSAGING.md](docs/MESSAGING.md).
 
 ## Travailler dans ce dépôt
 
