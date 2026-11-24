@@ -1,0 +1,14 @@
+{
+  "name": "wolf-core-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gestion métier des parcours voix WOLF V5",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.js",
+    "preview": "node scripts/serve.mjs dist"
+  },
+  "engines": {"node": ">=20"}
+}

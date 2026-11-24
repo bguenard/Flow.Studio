@@ -1,0 +1,33 @@
+/* The form keeps its original select; only its browser-specific surface is replaced. */
+.wolf-select { position: relative; width: 100%; min-width: 0; }
+select.wolf-select-native { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important; border: 0 !important; clip-path: inset(50%) !important; overflow: hidden !important; white-space: nowrap !important; opacity: 0 !important; pointer-events: none !important; }
+button.wolf-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-width: 0; min-height: 44px; margin: 0; padding: 11px 13px; border: 1px solid #cdd4dc; border-radius: 8px; background: #fff; color: #26323e; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.45; text-align: left; box-shadow: 0 1px 2px rgb(20 30 40 / 3%); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+button.wolf-select-trigger:hover { border-color: #e78634; background: #fffcf9; }
+button.wolf-select-trigger:focus-visible, button.wolf-select-trigger[aria-expanded="true"] { outline: 2px solid #ff7900; outline-offset: 2px; border-color: #ff7900; box-shadow: 0 0 0 4px rgb(255 121 0 / 9%); }
+button.wolf-select-trigger[aria-invalid="true"] { border-color: #bc3535; }
+button.wolf-select-trigger:disabled { cursor: not-allowed; background: #f3f5f7; color: #82909b; border-color: #e0e4e9; box-shadow: none; }
+.wolf-select-value { display: block; min-width: 0; overflow-wrap: anywhere; }
+.wolf-select-trigger.is-placeholder .wolf-select-value { color: #606b78; font-weight: 400; }
+.wolf-select-chevron { display: flex; flex: 0 0 20px; color: #6c7782; transition: transform .15s; }
+.wolf-select-chevron svg { width: 20px; height: 20px; }
+.wolf-select-trigger[aria-expanded="true"] .wolf-select-chevron { transform: rotate(180deg); color: #c45c00; }
+.wolf-select-popup { position: fixed; z-index: 10000; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; padding: 5px; border: 1px solid #d8dee5; border-top: 3px solid #ff7900; border-radius: 10px; background: #fff; color: #26323e; box-shadow: 0 14px 40px rgb(20 30 45 / 18%), 0 2px 6px rgb(20 30 45 / 7%); font: 14px/1.45 Arial, Helvetica, sans-serif; }
+.wolf-select-search { position: relative; flex: 0 0 auto; margin: 4px 4px 8px; }
+.wolf-select-search input { box-sizing: border-box; display: block; width: 100%; min-height: 40px; margin: 0; padding: 9px 12px 9px 36px; border: 1px solid #d9dfe5; border-radius: 6px; outline: none; background: #f6f8fa; color: #26323e; font: inherit; }
+.wolf-select-search input:focus { border-color: #ed9850; box-shadow: 0 0 0 2px rgb(255 121 0 / 10%); background: #fff; }
+.wolf-select-search-icon { pointer-events: none; position: absolute; top: 10px; left: 11px; display: flex; color: #77838e; }
+.wolf-select-search-icon svg { width: 20px; height: 20px; }
+.wolf-select-list { position: relative; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c4cbd3 transparent; }
+.wolf-select-group { padding: 12px 11px 5px; color: #5e6b79; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.wolf-select-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; min-height: 42px; margin: 2px; padding: 10px 11px; border: 1px solid transparent; border-radius: 6px; color: #2b3743; cursor: pointer; }
+.wolf-select-option-label { min-width: 0; overflow-wrap: anywhere; }
+.wolf-select-option.is-active { border-color: #ffd3ad; background: #fff1e5; color: #8e4000; }
+.wolf-select-option[aria-selected="true"] { font-weight: 700; background: #fff5ec; color: #a84d00; }
+.wolf-select-option[aria-selected="true"].is-active { background: #ffe8d4; }
+.wolf-select-option[aria-disabled="true"] { cursor: not-allowed; color: #98a1aa; background: #fafbfc; font-weight: 400; }
+.wolf-select-option-check { display: flex; flex: 0 0 18px; visibility: hidden; color: #e06a00; }
+.wolf-select-option-check svg { width: 18px; height: 18px; }
+.wolf-select-option[aria-selected="true"] .wolf-select-option-check { visibility: visible; }
+.wolf-select-empty { padding: 20px 12px; color: #606b78; text-align: center; }
+.wolf-select-count { flex: 0 0 auto; padding: 8px 10px 4px; margin-top: 4px; border-top: 1px solid #edf0f3; color: #616b75; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { button.wolf-select-trigger, .wolf-select-chevron { transition: none; } }

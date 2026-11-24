@@ -1,0 +1,1807 @@
+[
+  {
+    "name": "W_RATIO_DISTRIB_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO1": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "RATIO1_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO1_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO1_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO2": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "RATIO2_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO2_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO2_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO3": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "RATIO3_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO3_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO3_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "RATIO4": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "RATIO4_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "RATIO4_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "RATIO4_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "RATIO5": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "RATIO5_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "RATIO5_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "RATIO5_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_DECISION_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "PARTICIPANT_DATA_TO_CHECK": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DECISION_OPERATOR": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DECISION_VALUE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "TRUE_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "TRUE_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "TRUE_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "FALSE_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "FALSE_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "FALSE_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_INTENT_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INTENT_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INTENT_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INTENT_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "ACTIVATE": {
+          "type": "boolean"
+        },
+        "DESACTIVATE_INTENT_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_CHECK_CUSTOMER_HOME_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BYPASS_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BYPASS_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BYPASS_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_BOT_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "ID_BOT": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_MATCH_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_MATCH_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_MATCH_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_INPUT_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_INPUT_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NO_INPUT_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_CHECK_EWT_PIQ_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NB_PROPOSAL_MAX": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "LOWER_BOUND": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "UPPER_BOUND": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "LOWER_BOUND_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "LOWER_BOUND_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "LOWER_BOUND_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BETWEEN_BOUNDS_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BETWEEN_BOUNDS_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "BETWEEN_BOUND_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "UPPER_BOUND_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "UPPER_BOUND_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "UPPER_BOUND_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_PARTICIPANT_DATA_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PDATA_LIST_1": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PDATA_LIST_2": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PDATA_LIST_3": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PDATA_LIST_4": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PDATA_LIST_5": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_INBOUND_CALL_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "LANGUAGE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "SUBROUTINES_LIST": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "WELCOME_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NEXT_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NEXT_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "NEXT_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_RECORDING_V5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "ENABLE_RECORDING": {
+          "type": "boolean"
+        },
+        "AUDIO_RECORDING": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "CONSENT_MENU": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_MENU_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "MENU_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "MENU_TIMEOUT": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "MENU_REPEAT": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "MENU_ERROR_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DEFAULT_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION0_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION0_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION0_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION1_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION1_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION1_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION2_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION2_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION2_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION3_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION3_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION3_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION4_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION4_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION4_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION5_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION5_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION5_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION6_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION6_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION6_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION7_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION7_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION7_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION8_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION8_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION8_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION9_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION9_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTION9_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONSTAR_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONSTAR_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONSTAR_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONDIEZ_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONDIEZ_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPTIONDIEZ_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_SERVICES_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "QUEUE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "SKILLS": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "LANGUAGE_SKILL": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "PRIORITY": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "WHISPER_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_MUSIC_INIT": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_TIMEOUT_INIT": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_REPEAT": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_AUDIO_1": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_MUSIC_1": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_TIMEOUT_1": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_SUBROUTINES_LIST_1": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_MENU_1": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_AUDIO_2": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_MUSIC_2": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_TIMEOUT_2": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_SUBROUTINES_LIST_2": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_MENU_2": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_AUDIO_3": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_MUSIC_3": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_TIMEOUT_3": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_SUBROUTINES_LIST_3": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_MENU_3": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_AUDIO_4": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_MUSIC_4": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_HOLD_TIMEOUT_4": {
+          "type": "integer",
+          "maximum": 999999999999999,
+          "minimum": -999999999999999
+        },
+        "INQUEUE_SUBROUTINES_LIST_4": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_MENU_4": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "INQUEUE_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIRECT_USER": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_SCHEDULE_FOR_CALLBACK_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TIMEZONE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SCHEDULEGROUP_FOR_CALLBACK": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TAKE_ONLY_MORNING_FOR_TODAY_CHECKING": {
+          "type": "boolean"
+        },
+        "SUNDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SUNDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SUNDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MONDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MONDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MONDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TUESDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TUESDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TUESDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "WEDNESDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "WEDNESDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "WEDNESDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "THURSDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "THURSDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "THURSDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "FRIDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "FRIDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "FRIDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SATURDAY_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SATURDAY_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SATURDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "HOLIDAYS_WITH_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "HOLIDAYS_WITHOUT_TODAY_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "HOLIDAY_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "IF_SCHEDULE_FAILED_CREATE_SIMPLE_CALLBACK": {
+          "type": "boolean"
+        },
+        "SCHEDULE_CALLBACK_FAILURE_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_CHECK_INTERACTION_NB_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "INTERACTIONS_MAXIMUM": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "RATIO_AGENT_VS_INTERACTION": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "BUSY_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "BUSY_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "NOT_BUSY_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_CALLBACK_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "CALLBACK_QUEUE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SKILLS": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "LANGUAGE_SKILL": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PRIORITY": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SCRIPT": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PRESENTATION_CALLER_ID": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "PRESENTATION_CALLER_NAME": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "USE_CALLER_ANI": {
+          "type": "boolean"
+        },
+        "ASK_FOR_ANI_WITH_COUNTRY_CODE": {
+          "type": "boolean"
+        },
+        "COUNTRY_CODE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "COLLECT_MENU_REPEAT": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "COLLECT_MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "COLLECT_MENU_REPEAT_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "COLLECT_MENU_TIMEOUT": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "COLLECT_SIZE": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "CONFIRMATION_ANI_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "CONFIRMATION_DIAL_MENU": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "CALLBACK_VALIDATION_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "SCHEDULE_KEY_CB": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "ACTIVE_SCHEDULE_CB": {
+          "type": "boolean"
+        },
+        "CHECK_CB_EXISTS": {
+          "type": "boolean"
+        },
+        "KEEP_OLD_CALLBACK": {
+          "type": "boolean"
+        },
+        "CB_ALREADY_EXISTS_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_CHECK_AGENT_LOGGED_V5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MINIMUM_AGENT_REQUIRED": {
+          "type": "number",
+          "minimum": -1e+40,
+          "maximum": 1e+40
+        },
+        "STATUS": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "NOTLOGGEDIN_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "NOTLOGGEDIN_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "NOTLOGGEDIN_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "LOGGEDIN_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_MENU_CB_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DIVISION": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MENU_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "MENU_TIMEOUT": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "MENU_REPEAT": {
+          "type": "integer",
+          "minimum": -999999999999999,
+          "maximum": 999999999999999
+        },
+        "MENU_ERROR_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "DEFAULT_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION0_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION0_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION0_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION1_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION1_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION1_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION2_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION2_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION2_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION3_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION3_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION3_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION4_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION4_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION4_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION5_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION5_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION5_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION6_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION6_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION6_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION7_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION7_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION7_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION8_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION8_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION8_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION9_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION9_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTION9_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONSTAR_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONSTAR_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONSTAR_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONDIEZ_AUDIO": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONDIEZ_TARGET_TYPE": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        },
+        "OPTIONDIEZ_TARGET": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 262144
+        }
+      }
+    }
+  },
+  {
+    "name": "W_SCHEDULE_GROUP_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "SCHEDULE_GROUP": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "EMERGENCY_GROUP": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPEN_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPEN_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "OPEN_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "CLOSED_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "CLOSED_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "CLOSED_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "HOLIDAY_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "HOLIDAY_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "HOLIDAY_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "EMERGENCY_TARGET_AUDIO": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "EMERGENCY_TARGET_TYPE": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "EMERGENCY_TARGET": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "W_TRANSFER_CALLFLOW_v5",
+    "schema": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1
+        },
+        "DESCRIPTION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "DIVISION": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        },
+        "FLOW_NAME": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 0
+        }
+      }
+    }
+  }
+]
