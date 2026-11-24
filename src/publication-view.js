@@ -1,19 +1,54 @@
-import {esc,icon,btn,tag,head,date} from './ui-kit.js';
-import {fieldLabel} from './draft-fields.js';
-import {publicationPreflightView} from './publication-preflight-view.js';
-const value=v=>v===undefined?'Absent':v===null?'Non renseigné':typeof v==='object'?JSON.stringify(v):String(v);
-const statusNames={pending:'En attente',writing:'Écriture en cours',verified:'Vérifié dans Genesys',uncertain:'Résultat à vérifier',failed:'Échec',partial:'Publication partielle',running:'Publication en cours',reconciled:'Vérification terminée',unchanged:'Non appliqué',conflict:'Différence à examiner'};
-export function publicationView({rows=[],plan,run,history=[],busy=false,selected=new Set(),connected=false,preflight=null}){
- const entries=run?.entries||plan?.entries||rows;
- return head('MISE EN SERVICE','Centre de publication','Contrôlez les adaptations, publiez dans Genesys et retrouvez leur historique.',btn(icon('undo')+' Mes changements','nav','secondary','data-view="changes"'))+`
- <div class="publication-steps"><span class="active">01 · Sélection</span><span class="${plan||run?'active':''}">02 · Contrôle Genesys</span><span class="${run?'active':''}">03 · Publication & vérification</span></div>
- ${plan?`<div class="publication-destination">${icon('shield')}<div><strong>${esc(plan.actor.organizationName)} · Dublin</strong><p>Compte : ${esc(plan.actor.userName)} · ${plan.entries.length} ligne(s) · Contrôle valable 5 minutes</p></div>${tag('Contrôle effectué','green')}</div>`:''}
- ${run?`<div class="publication-result ${run.status==='verified'?'success':''}" role="status"><h2>${esc(statusNames[run.status]||run.status)}</h2><p>${run.entries.filter(e=>e.status==='verified').length} / ${run.entries.length} lignes confirmées par relecture.</p>${run.error?`<p>${esc(run.error)}</p>`:''}${run.journalError?`<p>${esc(run.journalError)}</p>`:''}${btn('Exporter le compte rendu','publication-export','secondary',`data-id="${esc(run.id)}"`)}</div>`:''}
- ${plan?.source?.startsWith('restore:')?'<div class="notice">La restauration remet les anciennes valeurs des lignes modifiées. Les nouvelles lignes sont conservées ; aucune suppression automatique n’est effectuée.</div>':''}
- ${!connected?'<div class="notice warning">Une session Genesys et une source chargée depuis cette organisation sont nécessaires pour publier.</div>':''}
- ${!run?publicationPreflightView(preflight,{busy,remoteChecked:Boolean(plan)&&!preflight?.errors}):''}
- <div class="publication-selection">${!plan&&!run?`<label><input type="checkbox" id="publication-all" ${rows.length&&rows.every(r=>selected.has(r.id))?'checked':''} ${busy?'disabled':''}> Tout sélectionner</label><span>${selected.size} ligne(s) sélectionnée(s)</span>`:''}</div>
- <section class="publication-rows">${entries.map(e=>`<article class="publication-row"><header>${!plan&&!run?`<input type="checkbox" data-publication-row="${esc(e.id)}" aria-label="Publier ${esc(e.label)}" ${selected.has(e.id)?'checked':''} ${busy?'disabled':''}>`:icon(e.kind==='create'?'plus':'diff')}<div><h2>${esc(e.label||e.key)}</h2><small>${esc(e.table)} · ${esc(e.key)}</small></div>${tag(e.status?statusNames[e.status]||e.status:e.kind==='create'?'Nouvelle ligne':'Modification',e.status==='verified'?'green':e.kind==='create'?'orange':'neutral')}</header><details ${entries.length<4?'open':''}><summary>${e.fields.length} champ(s) concerné(s)</summary><div class="publication-diff">${e.fields.map(k=>`<div><strong>${esc(fieldLabel(k))}</strong><span>${esc(value(e.before?.[k]))}</span><b aria-label="devient">→</b><span>${esc(value(e.after[k]))}</span></div>`).join('')}</div></details>${e.error?`<p role="alert">${esc(e.error)}</p>`:''}</article>`).join('')||'<div class="empty-state"><h2>Aucun changement à publier</h2><p>Enregistrez vos adaptations depuis un parcours.</p></div>'}</section>
- ${!run?`<div class="publication-bar"><div><strong>${busy?'Opération en cours…':preflight?.errors?'Corrigez les points bloquants':plan?'Prêt pour la publication':'Préparez votre publication'}</strong><p>${plan?'Publication progressive : en cas d’échec, les lignes déjà publiées seront indiquées dans le compte rendu.':'La vérification relit les schémas et les lignes dans Genesys.'}</p></div>${plan?btn('Modifier la sélection','publication-edit','secondary',busy?'disabled':'')+btn(icon('upload')+' Publier dans Genesys','publication-commit','primary',busy||preflight?.errors?'disabled':''):btn(icon('shield')+' Vérifier dans Genesys','publication-prepare','primary',busy||!connected||!selected.size||preflight?.errors?'disabled':'')}</div>`:btn('Nouvelle publication','publication-new','secondary',busy?'disabled':'')}
- <section class="publication-history"><h2>Historique des publications</h2><p>Journal conservé dans ce navigateur. Exportez les comptes rendus pour les archiver.</p>${history.map(h=>`<article><div><strong>${date(h.createdAt)} · ${esc(h.actor.userName)}</strong><p>${h.entries.length} ligne(s) · ${esc(statusNames[h.status]||h.status)}</p></div><div>${btn('Compte rendu','publication-export','quiet small',`data-id="${esc(h.id)}"`)}${btn('Vérifier l’état','publication-reconcile','secondary small',`data-id="${esc(h.id)}" ${busy?'disabled':''}`)}${h.entries.some(e=>e.status==='verified'&&e.before!==null)?btn('Préparer la restauration','publication-restore','secondary small',`data-id="${esc(h.id)}" ${busy?'disabled':''}`):''}</div></article>`).join('')||'<p>Aucune publication enregistrée.</p>'}</section>`;
+import { esc, icon, btn, tag, head, date } from './ui-kit.js';
+import { fieldLabel } from './draft-fields.js';
+import { publicationPreflightView } from './publication-preflight-view.js';
+const value = (v) =>
+  v === undefined
+    ? 'Absent'
+    : v === null
+      ? 'Non renseigné'
+      : typeof v === 'object'
+        ? JSON.stringify(v)
+        : String(v);
+const statusNames = {
+  pending: 'En attente',
+  writing: 'Écriture en cours',
+  verified: 'Vérifié dans Genesys',
+  uncertain: 'Résultat à vérifier',
+  failed: 'Échec',
+  partial: 'Publication partielle',
+  running: 'Publication en cours',
+  reconciled: 'Vérification terminée',
+  unchanged: 'Non appliqué',
+  conflict: 'Différence à examiner',
+};
+export function publicationView({
+  rows = [],
+  plan,
+  run,
+  history = [],
+  busy = false,
+  selected = new Set(),
+  connected = false,
+  preflight = null,
+}) {
+  const entries = run?.entries || plan?.entries || rows;
+  return (
+    head(
+      'MISE EN SERVICE',
+      'Centre de publication',
+      'Contrôlez les adaptations, publiez dans Genesys et retrouvez leur historique.',
+      btn(icon('undo') + ' Mes changements', 'nav', 'secondary', 'data-view="changes"'),
+    ) +
+    `
+ <div class="publication-steps"><span class="active">01 · Sélection</span><span class="${plan || run ? 'active' : ''}">02 · Contrôle Genesys</span><span class="${run ? 'active' : ''}">03 · Publication & vérification</span></div>
+ ${plan ? `<div class="publication-destination">${icon('shield')}<div><strong>${esc(plan.actor.organizationName)} · Dublin</strong><p>Compte : ${esc(plan.actor.userName)} · ${plan.entries.length} ligne(s) · Contrôle valable 5 minutes</p></div>${tag('Contrôle effectué', 'green')}</div>` : ''}
+ ${run ? `<div class="publication-result ${run.status === 'verified' ? 'success' : ''}" role="status"><h2>${esc(statusNames[run.status] || run.status)}</h2><p>${run.entries.filter((e) => e.status === 'verified').length} / ${run.entries.length} lignes confirmées par relecture.</p>${run.error ? `<p>${esc(run.error)}</p>` : ''}${run.journalError ? `<p>${esc(run.journalError)}</p>` : ''}${btn('Exporter le compte rendu', 'publication-export', 'secondary', `data-id="${esc(run.id)}"`)}</div>` : ''}
+ ${plan?.source?.startsWith('restore:') ? '<div class="notice">La restauration remet les anciennes valeurs des lignes modifiées. Les nouvelles lignes sont conservées ; aucune suppression automatique n’est effectuée.</div>' : ''}
+ ${!connected ? '<div class="notice warning">Une session Genesys et une source chargée depuis cette organisation sont nécessaires pour publier.</div>' : ''}
+ ${!run ? publicationPreflightView(preflight, { busy, remoteChecked: Boolean(plan) && !preflight?.errors }) : ''}
+ <div class="publication-selection">${!plan && !run ? `<label><input type="checkbox" id="publication-all" ${rows.length && rows.every((r) => selected.has(r.id)) ? 'checked' : ''} ${busy ? 'disabled' : ''}> Tout sélectionner</label><span>${selected.size} ligne(s) sélectionnée(s)</span>` : ''}</div>
+ <section class="publication-rows">${entries.map((e) => `<article class="publication-row"><header>${!plan && !run ? `<input type="checkbox" data-publication-row="${esc(e.id)}" aria-label="Publier ${esc(e.label)}" ${selected.has(e.id) ? 'checked' : ''} ${busy ? 'disabled' : ''}>` : icon(e.kind === 'create' ? 'plus' : 'diff')}<div><h2>${esc(e.label || e.key)}</h2><small>${esc(e.table)} · ${esc(e.key)}</small></div>${tag(e.status ? statusNames[e.status] || e.status : e.kind === 'create' ? 'Nouvelle ligne' : 'Modification', e.status === 'verified' ? 'green' : e.kind === 'create' ? 'orange' : 'neutral')}</header><details ${entries.length < 4 ? 'open' : ''}><summary>${e.fields.length} champ(s) concerné(s)</summary><div class="publication-diff">${e.fields.map((k) => `<div><strong>${esc(fieldLabel(k))}</strong><span>${esc(value(e.before?.[k]))}</span><b aria-label="devient">→</b><span>${esc(value(e.after[k]))}</span></div>`).join('')}</div></details>${e.error ? `<p role="alert">${esc(e.error)}</p>` : ''}</article>`).join('') || '<div class="empty-state"><h2>Aucun changement à publier</h2><p>Enregistrez vos adaptations depuis un parcours.</p></div>'}</section>
+ ${!run ? `<div class="publication-bar"><div><strong>${busy ? 'Opération en cours…' : preflight?.errors ? 'Corrigez les points bloquants' : plan ? 'Prêt pour la publication' : 'Préparez votre publication'}</strong><p>${plan ? 'Publication progressive : en cas d’échec, les lignes déjà publiées seront indiquées dans le compte rendu.' : 'La vérification relit les schémas et les lignes dans Genesys.'}</p></div>${plan ? btn('Modifier la sélection', 'publication-edit', 'secondary', busy ? 'disabled' : '') + btn(icon('upload') + ' Publier dans Genesys', 'publication-commit', 'primary', busy || preflight?.errors ? 'disabled' : '') : btn(icon('shield') + ' Vérifier dans Genesys', 'publication-prepare', 'primary', busy || !connected || !selected.size || preflight?.errors ? 'disabled' : '')}</div>` : btn('Nouvelle publication', 'publication-new', 'secondary', busy ? 'disabled' : '')}
+ <section class="publication-history"><h2>Historique des publications</h2><p>Journal conservé dans ce navigateur. Exportez les comptes rendus pour les archiver.</p>${history.map((h) => `<article><div><strong>${date(h.createdAt)} · ${esc(h.actor.userName)}</strong><p>${h.entries.length} ligne(s) · ${esc(statusNames[h.status] || h.status)}</p></div><div>${btn('Compte rendu', 'publication-export', 'quiet small', `data-id="${esc(h.id)}"`)}${btn('Vérifier l’état', 'publication-reconcile', 'secondary small', `data-id="${esc(h.id)}" ${busy ? 'disabled' : ''}`)}${h.entries.some((e) => e.status === 'verified' && e.before !== null) ? btn('Préparer la restauration', 'publication-restore', 'secondary small', `data-id="${esc(h.id)}" ${busy ? 'disabled' : ''}`) : ''}</div></article>`).join('') || '<p>Aucune publication enregistrée.</p>'}</section>`
+  );
 }

@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fieldLabel, fieldSection, isIdentityField, isCopyableField, coerceRowValue } from '../src/draft-fields.js';
+import {
+  fieldLabel,
+  fieldSection,
+  isIdentityField,
+  isCopyableField,
+  coerceRowValue,
+} from '../src/draft-fields.js';
 
 test('French labels and identity recognition are safe for arbitrary column names', () => {
   assert.equal(fieldLabel('WELCOME_AUDIO'), 'Message d’accueil');
@@ -13,15 +19,51 @@ test('French labels and identity recognition are safe for arbitrary column names
   assert.equal(fieldLabel('RECORDING_ANNOUNCE_AUDIO'), 'Annonce d’enregistrement');
   assert.equal(fieldLabel('constructor'), 'constructor');
   assert.equal(fieldLabel('__proto__'), '__proto__');
-  for (const key of ['key', 'DNIS_SEGMENT', 'SERVICE', 'MENU_NAME', 'PDATA_NAME', 'SCHEDULE_GROUP_KEY']) assert.equal(isIdentityField(key), true, key);
+  for (const key of [
+    'key',
+    'DNIS_SEGMENT',
+    'SERVICE',
+    'MENU_NAME',
+    'PDATA_NAME',
+    'SCHEDULE_GROUP_KEY',
+  ])
+    assert.equal(isIdentityField(key), true, key);
   assert.equal(isIdentityField('PRIORITY'), false);
 });
 
 test('copy allowlist excludes IDs, resource references, unknowns and target type changes', () => {
-  for (const key of ['key', 'DNIS_SEGMENT', 'DIVISION', 'QUEUE', 'SKILLS', 'LANGUAGE_SKILL', 'NEXT_TARGET', 'NEXT_TARGET_TYPE', 'INQUEUE_MENU_1', 'CUSTOM_REFERENCE', 'constructor']) assert.equal(isCopyableField(key, 'a'), false, key);
-  for (const key of ['DESCRIPTION', 'PRIORITY', 'MENU_TIMEOUT', 'MENU_REPEAT', 'INQUEUE_REPEAT', 'INQUEUE_HOLD_TIMEOUT_4']) assert.equal(isCopyableField(key, '1'), true, key);
+  for (const key of [
+    'key',
+    'DNIS_SEGMENT',
+    'DIVISION',
+    'QUEUE',
+    'SKILLS',
+    'LANGUAGE_SKILL',
+    'NEXT_TARGET',
+    'NEXT_TARGET_TYPE',
+    'INQUEUE_MENU_1',
+    'CUSTOM_REFERENCE',
+    'constructor',
+  ])
+    assert.equal(isCopyableField(key, 'a'), false, key);
+  for (const key of [
+    'DESCRIPTION',
+    'PRIORITY',
+    'MENU_TIMEOUT',
+    'MENU_REPEAT',
+    'INQUEUE_REPEAT',
+    'INQUEUE_HOLD_TIMEOUT_4',
+  ])
+    assert.equal(isCopyableField(key, '1'), true, key);
   assert.equal(isCopyableField('WELCOME_AUDIO', 'tts:Bonjour'), true);
-  for (const value of ['pr:Accueil', 'tts:', 'tts:Bonjour|pr:Accueil', 'tts:Bonjour|var:CLIENT', 'tts:Bonjour $var:CLIENT$']) assert.equal(isCopyableField('WELCOME_AUDIO', value), false, value);
+  for (const value of [
+    'pr:Accueil',
+    'tts:',
+    'tts:Bonjour|pr:Accueil',
+    'tts:Bonjour|var:CLIENT',
+    'tts:Bonjour $var:CLIENT$',
+  ])
+    assert.equal(isCopyableField('WELCOME_AUDIO', value), false, value);
 });
 
 test('CSV strings remain strings, schema numbers are explicit and blanks are not zero', () => {
@@ -30,23 +72,45 @@ test('CSV strings remain strings, schema numbers are explicit and blanks are not
   assert.equal(coerceRowValue('12', '13', { type: 'integer' }), 13);
   assert.equal(coerceRowValue('12', '13', { type: 'string' }), '13');
   assert.equal(coerceRowValue(1, '2'), 2);
-  for (const invalid of ['', ' ', 'NaN', 'Infinity', '0x10', '1e999']) assert.throws(() => coerceRowValue(1, invalid));
+  for (const invalid of ['', ' ', 'NaN', 'Infinity', '0x10', '1e999'])
+    assert.throws(() => coerceRowValue(1, invalid));
   assert.throws(() => coerceRowValue(1, '1.5', { type: 'integer' }), /entier/);
 });
 
 test('voice v4 and v5 fields group into business sections without hiding unknowns', () => {
   const expected = {
-    key: 'identite', DESCRIPTION: 'identite', DIVISION: 'identite',
-    RECORDING_ENABLE: 'accueil', RECORDING_ANNOUNCE_AUDIO: 'accueil', RECORDING_CONSENT_MENU: 'accueil', BLOCK_ANI_CHECK: 'accueil',
-    SCHEDULE_GROUP: 'horaires', EXCEPTIONAL_DAYS_NAME: 'horaires', OPEN_TARGET: 'horaires', EMERGENCY_TARGET_TYPE: 'horaires',
-    PRIORITY: 'distribution', NOTLOGGEDIN_TARGET_TYPE: 'distribution', QUEUE: 'distribution',
-    OPTIONSTAR_AUDIO: 'menu', OPTIONDIEZ_TARGET: 'menu', MENU_TIMEOUT: 'menu',
-    INQUEUE_TARGET: 'attente', INQUEUE_PIQ_EWT_PLAY_POSITION: 'attente',
-    NEXT_TARGET: 'routage', TARGET_TYPE_10: 'routage', RATIO_10: 'routage', FLOW_NAME: 'routage',
-    PDATA_LIST_1: 'contexte', DECISION_OPERATOR: 'contexte',
-    SUBROUTINES_LIST: 'avance', CUSTOM_FIELD: 'avance', constructor: 'avance', __proto__: 'avance',
+    key: 'identite',
+    DESCRIPTION: 'identite',
+    DIVISION: 'identite',
+    RECORDING_ENABLE: 'accueil',
+    RECORDING_ANNOUNCE_AUDIO: 'accueil',
+    RECORDING_CONSENT_MENU: 'accueil',
+    BLOCK_ANI_CHECK: 'accueil',
+    SCHEDULE_GROUP: 'horaires',
+    EXCEPTIONAL_DAYS_NAME: 'horaires',
+    OPEN_TARGET: 'horaires',
+    EMERGENCY_TARGET_TYPE: 'horaires',
+    PRIORITY: 'distribution',
+    NOTLOGGEDIN_TARGET_TYPE: 'distribution',
+    QUEUE: 'distribution',
+    OPTIONSTAR_AUDIO: 'menu',
+    OPTIONDIEZ_TARGET: 'menu',
+    MENU_TIMEOUT: 'menu',
+    INQUEUE_TARGET: 'attente',
+    INQUEUE_PIQ_EWT_PLAY_POSITION: 'attente',
+    NEXT_TARGET: 'routage',
+    TARGET_TYPE_10: 'routage',
+    RATIO_10: 'routage',
+    FLOW_NAME: 'routage',
+    PDATA_LIST_1: 'contexte',
+    DECISION_OPERATOR: 'contexte',
+    SUBROUTINES_LIST: 'avance',
+    CUSTOM_FIELD: 'avance',
+    constructor: 'avance',
+    __proto__: 'avance',
   };
-  for (const [key, section] of Object.entries(expected)) assert.equal(fieldSection(key), section, key);
+  for (const [key, section] of Object.entries(expected))
+    assert.equal(fieldSection(key), section, key);
   assert.equal(fieldSection('__proto__'), 'avance');
 });
 

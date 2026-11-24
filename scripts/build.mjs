@@ -1,6 +1,8 @@
 import { mkdir, copyFile, cp, rm } from 'node:fs/promises';
-await rm('dist', {recursive:true, force:true});
-await mkdir('dist', {recursive:true});
+await rm('dist', { recursive: true, force: true });
+await mkdir('dist', { recursive: true });
 await copyFile('index.html', 'dist/index.html');
-await cp('src', 'dist/src', {recursive:true});
-console.log('Build terminé : dist/ — application statique autonome (ELK embarqué dans src/vendor pour le diagramme).');
+await cp('src', 'dist/src', { recursive: true });
+console.log(
+  'Build terminé : dist/ — application statique autonome (ELK embarqué dans src/vendor pour le diagramme).',
+);

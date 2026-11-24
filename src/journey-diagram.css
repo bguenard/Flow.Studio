@@ -1,52 +1,279 @@
 /* Diagramme de la vue Administration : une carte par étape, ses branches en sorties sur son bord,
    et des liens à angles droits placés par ELK. Les hauteurs sont fixées par journey-diagram.js :
    la zone haute et chaque sortie (30 px, ou 48 px sur deux lignes) ont la hauteur calculée, donc chaque lien part de sa sortie. */
-.is-studio .canvas-status { margin:auto; padding:24px; color:#5f6a75; font-size:15px; text-align:center; }
-.is-studio #graph-viewport:has(> .canvas-status) { display:flex; cursor:default; }
-.is-studio .canvas-status.failed { display:grid; gap:10px; justify-items:center; }
-.is-studio .canvas-status.failed strong { color:#1f2a34; font-size:16px; }
+.is-studio .canvas-status {
+  margin: auto;
+  padding: 24px;
+  color: #5f6a75;
+  font-size: 15px;
+  text-align: center;
+}
+.is-studio #graph-viewport:has(> .canvas-status) {
+  display: flex;
+  cursor: default;
+}
+.is-studio .canvas-status.failed {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.is-studio .canvas-status.failed strong {
+  color: #1f2a34;
+  font-size: 16px;
+}
 
-.is-studio .canvas-edge-halo { fill:none; stroke:var(--studio-canvas, #f3f5f7); stroke-width:6; }
-.is-studio .canvas-edge-line { fill:none; stroke:#93a0ad; stroke-width:1.6; stroke-linejoin:round; }
-.is-studio .canvas-edge.backedge .canvas-edge-line { stroke-dasharray:5 4; }
-.is-studio .canvas-edge.highlighted .canvas-edge-line { stroke:#e9730c; stroke-width:2.4; }
+.is-studio .canvas-edge-halo {
+  fill: none;
+  stroke: var(--studio-canvas, #f3f5f7);
+  stroke-width: 6;
+}
+.is-studio .canvas-edge-line {
+  fill: none;
+  stroke: #93a0ad;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.is-studio .canvas-edge.backedge .canvas-edge-line {
+  stroke-dasharray: 5 4;
+}
+.is-studio .canvas-edge.highlighted .canvas-edge-line {
+  stroke: #e9730c;
+  stroke-width: 2.4;
+}
 /* Survol d'une carte : ses liens ressortent, les autres s'effacent. */
-.is-studio #journey-canvas.focus .canvas-edge-line { opacity:.25; }
-.is-studio #journey-canvas.focus .canvas-edge.on .canvas-edge-line { opacity:1; stroke:#e9730c; stroke-width:2.2; }
+.is-studio #journey-canvas.focus .canvas-edge-line {
+  opacity: 0.25;
+}
+.is-studio #journey-canvas.focus .canvas-edge.on .canvas-edge-line {
+  opacity: 1;
+  stroke: #e9730c;
+  stroke-width: 2.2;
+}
 
-.is-studio .diagram-card { --card-accent:#3d5166; --card-soft:#eef2f6; position:absolute; z-index:2; display:flex; flex-direction:column; padding:0; border:0; border-radius:10px; background:#fff; color:#1f2a34; font:inherit; text-align:left; cursor:pointer; box-shadow:0 0 0 1px #d3dbe2, 0 1px 2px rgb(22 37 51 / 6%), 0 4px 14px rgb(22 37 51 / 5%); }
-.is-studio .diagram-card[data-kind="inboundcall"], .is-studio .diagram-card[data-kind="standardcallflow"] { --card-accent:#ab530d; --card-soft:#fff0e0; }
-.is-studio .diagram-card[data-kind="schedulegroup"] { --card-accent:#17695f; --card-soft:#e8f3f1; }
-.is-studio .diagram-card[data-kind="decision"], .is-studio .diagram-card[data-kind="ratiodistrib"] { --card-accent:#3f4fa3; --card-soft:#edf0fb; }
-.is-studio .diagram-card[data-kind="menu"], .is-studio .diagram-card[data-kind="bot"] { --card-accent:#6b3f95; --card-soft:#f4eef9; }
-.is-studio .diagram-card:hover { box-shadow:0 0 0 1px #9fb0bf, 0 2px 4px rgb(22 37 51 / 7%), 0 8px 20px rgb(22 37 51 / 8%); }
-.is-studio .diagram-card.selected { box-shadow:0 0 0 2px #ff7900, 0 0 0 6px rgb(255 121 0 / 14%), 0 6px 18px rgb(22 37 51 / 8%); }
-.is-studio .diagram-card:focus-visible { outline:3px solid #b65200; outline-offset:4px; }
+.is-studio .diagram-card {
+  --card-accent: #3d5166;
+  --card-soft: #eef2f6;
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2a34;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px #d3dbe2,
+    0 1px 2px rgb(22 37 51 / 6%),
+    0 4px 14px rgb(22 37 51 / 5%);
+}
+.is-studio .diagram-card[data-kind='inboundcall'],
+.is-studio .diagram-card[data-kind='standardcallflow'] {
+  --card-accent: #ab530d;
+  --card-soft: #fff0e0;
+}
+.is-studio .diagram-card[data-kind='schedulegroup'] {
+  --card-accent: #17695f;
+  --card-soft: #e8f3f1;
+}
+.is-studio .diagram-card[data-kind='decision'],
+.is-studio .diagram-card[data-kind='ratiodistrib'] {
+  --card-accent: #3f4fa3;
+  --card-soft: #edf0fb;
+}
+.is-studio .diagram-card[data-kind='menu'],
+.is-studio .diagram-card[data-kind='bot'] {
+  --card-accent: #6b3f95;
+  --card-soft: #f4eef9;
+}
+.is-studio .diagram-card:hover {
+  box-shadow:
+    0 0 0 1px #9fb0bf,
+    0 2px 4px rgb(22 37 51 / 7%),
+    0 8px 20px rgb(22 37 51 / 8%);
+}
+.is-studio .diagram-card.selected {
+  box-shadow:
+    0 0 0 2px #ff7900,
+    0 0 0 6px rgb(255 121 0 / 14%),
+    0 6px 18px rgb(22 37 51 / 8%);
+}
+.is-studio .diagram-card:focus-visible {
+  outline: 3px solid #b65200;
+  outline-offset: 4px;
+}
 
-.is-studio .diagram-card-top { display:block; flex:0 0 auto; overflow:hidden; padding:14px 16px 0; }
-.is-studio .diagram-card-head { display:flex; gap:12px; }
-.is-studio .diagram-card-icon { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:8px; background:var(--card-soft); color:var(--card-accent); }
-.is-studio .diagram-card-icon svg { width:18px; height:18px; }
-.is-studio .diagram-card-copy { flex:1; min-width:0; }
-.is-studio .diagram-card-copy small { display:block; height:16px; overflow:hidden; color:#5f6a75; font-size:12px; line-height:16px; white-space:nowrap; text-overflow:ellipsis; }
-.is-studio .diagram-card-copy strong { display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; font-size:14.5px; font-weight:700; line-height:20px; overflow-wrap:anywhere; }
-.is-studio .diagram-card-reference { display:block; height:16px; margin-top:4px; overflow:hidden; color:#5f6a75; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; line-height:16px; white-space:nowrap; text-overflow:ellipsis; }
-.is-studio .diagram-card-preview { display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; margin-top:6px; color:#4d5965; font-size:13px; line-height:18px; overflow-wrap:anywhere; }
-.is-studio .diagram-card-facts { display:block; height:18px; margin-top:4px; overflow:hidden; color:#5f6a75; font-size:12px; line-height:18px; white-space:nowrap; text-overflow:ellipsis; }
+.is-studio .diagram-card-top {
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  padding: 14px 16px 0;
+}
+.is-studio .diagram-card-head {
+  display: flex;
+  gap: 12px;
+}
+.is-studio .diagram-card-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--card-soft);
+  color: var(--card-accent);
+}
+.is-studio .diagram-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.is-studio .diagram-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+.is-studio .diagram-card-copy small {
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  color: #5f6a75;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.is-studio .diagram-card-copy strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.is-studio .diagram-card-reference {
+  display: block;
+  height: 16px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #5f6a75;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.is-studio .diagram-card-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 6px;
+  color: #4d5965;
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.is-studio .diagram-card-facts {
+  display: block;
+  height: 18px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #5f6a75;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
-.is-studio .diagram-exits { display:block; margin-top:auto; border-radius:0 0 10px 10px; background:#f8fafb; }
-.is-studio .diagram-exit { position:relative; display:flex; align-items:center; justify-content:space-between; gap:12px; height:30px; padding:0 16px; border-top:1px solid #e6eaee; color:#33404c; font-size:13px; font-weight:600; white-space:nowrap; }
-.is-studio .diagram-exit-label { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-.is-studio .diagram-exit.tall { flex-direction:column; align-items:flex-start; justify-content:center; gap:0; height:48px; line-height:18px; }
-.is-studio .diagram-exit.tall > * { max-width:100%; }
-.is-studio .diagram-exit-end { flex:0 1 auto; min-width:0; max-width:62%; overflow:hidden; color:#6b7682; font-weight:400; text-overflow:ellipsis; }
-.is-studio .diagram-exit-end::before { content:''; display:inline-block; width:7px; height:7px; margin-right:7px; border-radius:2px; background:#aab3bc; vertical-align:1px; }
-.is-studio .diagram-exit.unresolved .diagram-exit-end { color:#8a5a00; font-weight:600; }
-.is-studio .diagram-exit.unresolved .diagram-exit-end::before { background:#d9a23a; }
-.is-studio .diagram-port { position:absolute; right:-5.5px; top:50%; width:11px; height:11px; margin-top:-5.5px; border:2px solid #93a0ad; border-radius:50%; background:#fff; }
-.is-studio .diagram-card.selected .diagram-port, .is-studio .diagram-card:hover .diagram-port { border-color:#e9730c; }
+.is-studio .diagram-exits {
+  display: block;
+  margin-top: auto;
+  border-radius: 0 0 10px 10px;
+  background: #f8fafb;
+}
+.is-studio .diagram-exit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 30px;
+  padding: 0 16px;
+  border-top: 1px solid #e6eaee;
+  color: #33404c;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.is-studio .diagram-exit-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.is-studio .diagram-exit.tall {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  height: 48px;
+  line-height: 18px;
+}
+.is-studio .diagram-exit.tall > * {
+  max-width: 100%;
+}
+.is-studio .diagram-exit-end {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 62%;
+  overflow: hidden;
+  color: #6b7682;
+  font-weight: 400;
+  text-overflow: ellipsis;
+}
+.is-studio .diagram-exit-end::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 2px;
+  background: #aab3bc;
+  vertical-align: 1px;
+}
+.is-studio .diagram-exit.unresolved .diagram-exit-end {
+  color: #8a5a00;
+  font-weight: 600;
+}
+.is-studio .diagram-exit.unresolved .diagram-exit-end::before {
+  background: #d9a23a;
+}
+.is-studio .diagram-port {
+  position: absolute;
+  right: -5.5px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  border: 2px solid #93a0ad;
+  border-radius: 50%;
+  background: #fff;
+}
+.is-studio .diagram-card.selected .diagram-port,
+.is-studio .diagram-card:hover .diagram-port {
+  border-color: #e9730c;
+}
 
 @media (prefers-reduced-motion: no-preference) {
-  .is-studio .diagram-card { transition:box-shadow .15s; }
-  .is-studio .canvas-edge-line { transition:opacity .15s; }
+  .is-studio .diagram-card {
+    transition: box-shadow 0.15s;
+  }
+  .is-studio .canvas-edge-line {
+    transition: opacity 0.15s;
+  }
+}
+
+.canvas-surface {
+  transform-origin: top left;
 }

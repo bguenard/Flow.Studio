@@ -42,7 +42,7 @@ La migration Studio a seulement copié les données, avec vérification après �
 
 Tester le nouveau lecteur sur un numéro contrôlé, puis vérifier dans les données participant les noms, valeurs, booléens false, chaînes vides et cas d’erreur. Vérifier les conditions et les choix de menu. Après validation, publier la bascule du flow et retirer uniquement les anciennes affectations d’entrée de chaque parcours migré ; une affectation ancienne exécutée après le nouveau lecteur pourrait sinon écraser les nouvelles valeurs.
 
-Conserver les groupes de contexte après menu (`*_CONTEXT_CONSEIL`, `*_CONTEXT_CONTRAT`, `*_CONTEXT_SINISTRE`) : ils renseignent le motif au moment du choix, pas à l’entrée. Ne supprimer une ligne `*_ACTIVATION` qu’après avoir vérifié qu’aucune référence ne l’utilise encore. Aucun nettoyage destructif n’est effectué par le bouton de migration.
+Conserver les groupes de contexte après menu (`*_CONTEXT_CONSEIL`, `*_CONTEXT_CONTRAT`, `*_CONTEXT_SINISTRE`) : ils renseignent le motif au moment du choix, pas à l’entrée. Ne supprimer une ligne `*_ACTIVATION` qu’après avoir vérifié qu’aucune référence ne l’utilise encore. Les anciens outils de migration ont été retirés du Studio.
 
 ## Core Models
 

@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sidebarCollapsed, readSidebarPreference, writeSidebarPreference } from '../src/sidebar.js';
 
-const store = () => { const values = new Map(); return { getItem: key => values.has(key) ? values.get(key) : null, setItem: (key, value) => values.set(key, String(value)) }; };
+const store = () => {
+  const values = new Map();
+  return {
+    getItem: (key) => (values.has(key) ? values.get(key) : null),
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+};
 
 test('without a choice, the menu is reduced where room is scarce: in a journey and on a narrow window', () => {
   assert.equal(sidebarCollapsed({ studio: false, width: 1600 }), false);
@@ -29,7 +35,23 @@ test('the choice is remembered, and an unavailable or unknown storage means no c
   writeSidebarPreference(storage, false);
   assert.equal(readSidebarPreference(storage), false);
   assert.equal(readSidebarPreference(null), null);
-  assert.equal(readSidebarPreference({ getItem() { throw Error('bloqué'); } }), null);
-  assert.doesNotThrow(() => writeSidebarPreference({ setItem() { throw Error('plein'); } }, true));
+  assert.equal(
+    readSidebarPreference({
+      getItem() {
+        throw Error('bloqué');
+      },
+    }),
+    null,
+  );
+  assert.doesNotThrow(() =>
+    writeSidebarPreference(
+      {
+        setItem() {
+          throw Error('plein');
+        },
+      },
+      true,
+    ),
+  );
   assert.equal(readSidebarPreference({ getItem: () => 'autre chose' }), null);
 });

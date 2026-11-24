@@ -1,0 +1,11 @@
+node_modules/
+dist/
+src/vendor/
+*.json
+!package.json
+!.prettierrc.json
+*.md
+*.yml
+*.yaml
+work/
+outputs/

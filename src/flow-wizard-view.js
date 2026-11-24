@@ -1,70 +1,295 @@
-import {languageOptions} from './language-options.js';
-import {esc,icon,btn,head} from './ui-kit.js';
-import {resourceForField,resourceOptions} from './genesys-resources.js';
+import { languageOptions } from './language-options.js';
+import { esc, icon, btn, head } from './ui-kit.js';
+import { resourceForField, resourceOptions } from './genesys-resources.js';
 
-const steps=['Identité','Accueil','Orientation','Équipes','Vérification'];
-const selected=(a,b)=>String(a??'')===String(b??'')?' selected':'';
-const list=value=>Array.isArray(value)?value:[];
-const entryFor=(options,type)=>list(options.catalogue).find(e=>e.type===type&&e.available!==false);
-const schemaField=(entry,key)=>list(entry?.fields).find(f=>f.key===key);
-const fieldId=(group,key,index)=>`wizard-${group}-${index??''}-${key}`;
-const attrs=(group,key,index,type='string')=>`id="${fieldId(group,key,index)}" name="wizard-${group}" data-field="${esc(key)}" data-value-type="${type}"${index!=null?` data-index="${index}"`:''}`;
-function input(label,key,value,{group='field',index,type='text',helper='',required=false,extra=''}={}){
- return `<div class="wizard-field"><label for="${fieldId(group,key,index)}">${esc(label)}${required?' <span aria-label="obligatoire">*</span>':''}</label><input ${attrs(group,key,index)} type="${type}" value="${esc(value??'')}" ${required?'required':''} ${type==='tel'?'inputmode="tel" autocomplete="off"':''} ${extra}>${helper?`<small>${esc(helper)}</small>`:''}</div>`;
+const steps = ['Identité', 'Accueil', 'Orientation', 'Équipes', 'Vérification'];
+const selected = (a, b) => (String(a ?? '') === String(b ?? '') ? ' selected' : '');
+const list = (value) => (Array.isArray(value) ? value : []);
+const entryFor = (options, type) =>
+  list(options.catalogue).find((e) => e.type === type && e.available !== false);
+const schemaField = (entry, key) => list(entry?.fields).find((f) => f.key === key);
+const fieldId = (group, key, index) => `wizard-${group}-${index ?? ''}-${key}`;
+const attrs = (group, key, index, type = 'string') =>
+  `id="${fieldId(group, key, index)}" name="wizard-${group}" data-field="${esc(key)}" data-value-type="${type}"${index != null ? ` data-index="${index}"` : ''}`;
+function input(
+  label,
+  key,
+  value,
+  { group = 'field', index, type = 'text', helper = '', required = false, extra = '' } = {},
+) {
+  return `<div class="wizard-field"><label for="${fieldId(group, key, index)}">${esc(label)}${required ? ' <span aria-label="obligatoire">*</span>' : ''}</label><input ${attrs(group, key, index)} type="${type}" value="${esc(value ?? '')}" ${required ? 'required' : ''} ${type === 'tel' ? 'inputmode="tel" autocomplete="off"' : ''} ${extra}>${helper ? `<small>${esc(helper)}</small>` : ''}</div>`;
 }
-function select(label,key,value,options,{group='field',index,required=false,placeholder='Choisir…'}={}){
- return `<div class="wizard-field"><label for="${fieldId(group,key,index)}">${esc(label)}</label><select ${attrs(group,key,index)} ${required?'required':''}><option value=""${selected(value,'')}>${esc(placeholder)}</option>${options.map(o=>`<option value="${esc(o.value)}"${selected(value,o.value)} ${o.disabled?'disabled':''}>${esc(o.label)}</option>`).join('')}</select></div>`;
+function select(
+  label,
+  key,
+  value,
+  options,
+  { group = 'field', index, required = false, placeholder = 'Choisir…' } = {},
+) {
+  return `<div class="wizard-field"><label for="${fieldId(group, key, index)}">${esc(label)}</label><select ${attrs(group, key, index)} ${required ? 'required' : ''}><option value=""${selected(value, '')}>${esc(placeholder)}</option>${options.map((o) => `<option value="${esc(o.value)}"${selected(value, o.value)} ${o.disabled ? 'disabled' : ''}>${esc(o.label)}</option>`).join('')}</select></div>`;
 }
-function resource(label,key,value,entry,context,{schemaKey=key,group='field',index,required=false}={}){
- const spec=resourceForField(schemaKey,{tableName:entry?.tableName}),state=context.resourceStates instanceof Map?context.resourceStates.get(spec?.catalogue):context.resourceStates?.[spec?.catalogue];
- const options=resourceOptions({key:schemaKey},{tableName:entry?.tableName},state?.entities||[]),ready=state?.status==='ready';
- const status=state?.status==='loading'?'Chargement de la liste Genesys…':state?.status==='error'?state.error:ready?`${options.length} ${options.length>1?'ressources':'ressource'} Genesys · recherche par nom`:context.connected?'Chargez la liste des ressources Genesys.':'Connectez-vous à Genesys pour choisir une ressource.';
- return `<div class="wizard-field"><label for="${fieldId(group,key,index)}">${esc(label)}${required?' <span aria-label="obligatoire">*</span>':''}</label><select ${attrs(group,key,index)} ${ready?'':'disabled'} ${required?'required':''}><option value=""${selected(value,'')}>${required?'Choisir une ressource':spec?.audio?'Aucun message':'Non renseignée'}</option>${value&&!options.some(o=>o.value===String(value))?`<option value="${esc(value)}" selected disabled>${esc(value)} · à vérifier</option>`:''}${options.map(o=>`<option value="${esc(o.value)}"${selected(value,o.value)} ${o.disabled?'disabled':''}>${esc(o.label)}${o.disabled?' · référence ambiguë':''}</option>`).join('')}</select><div class="wizard-resource-status"><small role="status">${esc(status)}</small>${context.connected&&spec?btn(ready?'Actualiser':'Charger la liste','wizard-resource-load','quiet small',`data-kind="${spec.catalogue}" ${state?.status==='loading'?'disabled':''}`):''}</div></div>`;
+function resource(
+  label,
+  key,
+  value,
+  entry,
+  context,
+  { schemaKey = key, group = 'field', index, required = false } = {},
+) {
+  const spec = resourceForField(schemaKey, { tableName: entry?.tableName }),
+    state =
+      context.resourceStates instanceof Map
+        ? context.resourceStates.get(spec?.catalogue)
+        : context.resourceStates?.[spec?.catalogue];
+  const options = resourceOptions(
+      { key: schemaKey },
+      { tableName: entry?.tableName },
+      state?.entities || [],
+    ),
+    ready = state?.status === 'ready';
+  const status =
+    state?.status === 'loading'
+      ? 'Chargement de la liste Genesys…'
+      : state?.status === 'error'
+        ? state.error
+        : ready
+          ? `${options.length} ${options.length > 1 ? 'ressources' : 'ressource'} Genesys · recherche par nom`
+          : context.connected
+            ? 'Chargez la liste des ressources Genesys.'
+            : 'Connectez-vous à Genesys pour choisir une ressource.';
+  return `<div class="wizard-field"><label for="${fieldId(group, key, index)}">${esc(label)}${required ? ' <span aria-label="obligatoire">*</span>' : ''}</label><select ${attrs(group, key, index)} ${ready ? '' : 'disabled'} ${required ? 'required' : ''}><option value=""${selected(value, '')}>${required ? 'Choisir une ressource' : spec?.audio ? 'Aucun message' : 'Non renseignée'}</option>${value && !options.some((o) => o.value === String(value)) ? `<option value="${esc(value)}" selected disabled>${esc(value)} · à vérifier</option>` : ''}${options.map((o) => `<option value="${esc(o.value)}"${selected(value, o.value)} ${o.disabled ? 'disabled' : ''}>${esc(o.label)}${o.disabled ? ' · référence ambiguë' : ''}</option>`).join('')}</select><div class="wizard-resource-status"><small role="status">${esc(status)}</small>${context.connected && spec ? btn(ready ? 'Actualiser' : 'Charger la liste', 'wizard-resource-load', 'quiet small', `data-kind="${spec.catalogue}" ${state?.status === 'loading' ? 'disabled' : ''}`) : ''}</div></div>`;
 }
-function audio(label,key,value,entry,form,context,{schemaKey=key,group='field',required=false}={}){
- const mode=form.audioModes?.[key]||(/^pr:|^prompt:/i.test(String(value||''))?'recorded':'tts');
- const literal=/^tts:/i.test(String(value||''))?String(value).slice(4):'';
- return `<section class="wizard-audio"><h3>${esc(label)}</h3><div class="segmented" role="group" aria-label="${esc(label)}">${btn(icon('message')+' Texte à lire','wizard-audio-mode',mode==='tts'?'active':'',`data-field="${esc(key)}" data-mode="tts" aria-pressed="${mode==='tts'}"`)}${btn(icon('play')+' Message enregistré','wizard-audio-mode',mode==='recorded'?'active':'',`data-field="${esc(key)}" data-mode="recorded" aria-pressed="${mode==='recorded'}"`)}</div>${mode==='tts'?`<div class="wizard-field"><label for="${fieldId(group,key)}">Texte lu à l’appelant</label><textarea ${attrs(group,key,undefined,'audio-tts')} rows="4" ${required?'required':''} placeholder="Bonjour et bienvenue…">${esc(literal)}</textarea><small>Ce texte sera lu par synthèse vocale dans la langue du parcours.</small></div>`:resource('Message Genesys',key,value,entry,context,{schemaKey,group,required})}</section>`;
+function audio(
+  label,
+  key,
+  value,
+  entry,
+  form,
+  context,
+  { schemaKey = key, group = 'field', required = false } = {},
+) {
+  const mode =
+    form.audioModes?.[key] || (/^pr:|^prompt:/i.test(String(value || '')) ? 'recorded' : 'tts');
+  const literal = /^tts:/i.test(String(value || '')) ? String(value).slice(4) : '';
+  return `<section class="wizard-audio"><h3>${esc(label)}</h3><div class="segmented" role="group" aria-label="${esc(label)}">${btn(icon('message') + ' Texte à lire', 'wizard-audio-mode', mode === 'tts' ? 'active' : '', `data-field="${esc(key)}" data-mode="tts" aria-pressed="${mode === 'tts'}"`)}${btn(icon('play') + ' Message enregistré', 'wizard-audio-mode', mode === 'recorded' ? 'active' : '', `data-field="${esc(key)}" data-mode="recorded" aria-pressed="${mode === 'recorded'}"`)}</div>${mode === 'tts' ? `<div class="wizard-field"><label for="${fieldId(group, key)}">Texte lu à l’appelant</label><textarea ${attrs(group, key, undefined, 'audio-tts')} rows="4" ${required ? 'required' : ''} placeholder="Bonjour et bienvenue…">${esc(literal)}</textarea><small>Ce texte sera lu par synthèse vocale dans la langue du parcours.</small></div>` : resource('Message Genesys', key, value, entry, context, { schemaKey, group, required })}</section>`;
 }
-function intro(symbol,title,description){return `<header class="wizard-section-heading"><span>${icon(symbol)}</span><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div></header>`;}
-function identity(form,options,context){
- const entry=entryFor(options,'inboundcall');
- return intro('phone','Identité du parcours','Nom affiché dans le Studio et numéro d’entrée.')+`<div class="wizard-fields">${input('Nom du parcours','name',form.name,{required:true})}${input('Numéro d’entrée','phone',form.phone,{required:true,type:'tel',helper:'Format international, par exemple +33123456789.'})}${entry?.divisionSchema?resource('Division','division',form.division,entry,context,{schemaKey:'DIVISION',required:Boolean(entry.divisionRequired)}):''}</div><div class="wizard-info">${icon('link')}<p>Le numéro identifie votre parcours WOLF. Son raccordement téléphonique se configure dans Genesys.</p></div>`;
+function intro(symbol, title, description) {
+  return `<header class="wizard-section-heading"><span>${icon(symbol)}</span><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div></header>`;
 }
-function welcome(form,options,context){
- const entry=entryFor(options,'inboundcall'),language=schemaField(entry,'LANGUAGE'),welcome=schemaField(entry,'WELCOME_AUDIO'),value=form.welcomeValues?.LANGUAGE??language?.default??language?.schema?.default??'';
- return intro('message','Message d’accueil','Premier message entendu au début de l’appel.')+(language?select('Langue du parcours','LANGUAGE',value,languageOptions(language.schema,value),{group:'welcome',required:language.required}):'')+(welcome?audio('Message d’accueil','WELCOME_AUDIO',form.welcomeValues?.WELCOME_AUDIO??welcome.default??welcome.schema?.default??'',entry,form,context,{group:'welcome'}):'<div class="wizard-info"><p>Cette table V5 ne comporte pas de message d’accueil. Vous pourrez compléter les étapes dans le designer.</p></div>')+'<p class="wizard-hint">Vous pourrez modifier ces réglages à tout moment dans la vue métier.</p>';
+function identity(form, options, context) {
+  const entry = entryFor(options, 'inboundcall');
+  return (
+    intro('phone', 'Identité du parcours', 'Nom affiché dans le Studio et numéro d’entrée.') +
+    `<div class="wizard-fields">${input('Nom du parcours', 'name', form.name, { required: true })}${input('Numéro d’entrée', 'phone', form.phone, { required: true, type: 'tel', helper: 'Format international, par exemple +33123456789.' })}${entry?.divisionSchema ? resource('Division', 'division', form.division, entry, context, { schemaKey: 'DIVISION', required: Boolean(entry.divisionRequired) }) : ''}</div><div class="wizard-info">${icon('link')}<p>Le numéro identifie votre parcours WOLF. Son raccordement téléphonique se configure dans Genesys.</p></div>`
+  );
 }
-function routing(form,options,context){
- const schedule=entryFor(options,'schedulegroup'),menu=entryFor(options,'menu');
- const choices=list(form.choices),digits=list(options.menuDigits).length?options.menuDigits:[];
- return intro('menu','Orientation des appels','Accès direct à une équipe, ou menu à plusieurs choix.')+select('Mode d’orientation','routing',form.routing||'direct',[{value:'direct',label:'Vers une équipe',disabled:options.directAvailable===false},{value:'menu',label:'Menu vocal avec plusieurs choix',disabled:options.menuAvailable===false}],{required:true})+`<div class="wizard-routing-description">${icon(form.routing==='menu'?'menu':'people')}<p>${form.routing==='menu'?'L’appelant choisit une touche. Chaque choix mène à l’équipe que vous définirez à l’étape suivante.':'L’appel est envoyé à l’équipe que vous choisirez à l’étape suivante.'}</p></div>`+(form.routing==='menu'?`<section class="wizard-choices"><h3>Les choix du menu</h3><div class="wizard-choice-edit-list">${choices.map((choice,index)=>`<article class="wizard-choice-edit"><div class="wizard-choice-edit-fields">${select('Touche','digit',choice.digit,digits.map(d=>({value:d,label:d==='*'?'Étoile (*)':d==='#'?'Dièse (#)':d})),{group:'choice',index,required:true})}${input('Nom du choix','label',choice.label,{group:'choice',index,required:true})}</div>${btn(icon('close'),'wizard-remove-choice','quiet',`data-index="${index}" aria-label="Supprimer le choix ${index+1}" ${choices.length<=2?'disabled':''}`)}</article>`).join('')}</div>${btn(icon('plus')+' Ajouter un choix','wizard-add-choice','secondary',choices.length>=digits.length?'disabled':'')}${schemaField(menu,'MENU_AUDIO')?audio('Message du menu','menuAudio',form.menuAudio||'',menu,form,context,{schemaKey:'MENU_AUDIO',required:true}):''}${schemaField(menu,'MENU_TIMEOUT')?select('Délai de réponse au menu','menuTimeout',form.menuTimeout,[3,5,7,10,12].map(v=>({value:String(v),label:`${v} secondes`})),{required:true}):''}<p class="wizard-hint">Annoncez les touches dans le message du menu. Sans choix valide, l’appel se termine ; cette branche pourra être adaptée dans le designer.</p></section>`:'')+`<section class="wizard-schedule"><label class="wizard-switch"><input ${attrs('field','scheduleEnabled',undefined,'boolean')} type="checkbox" ${form.scheduleEnabled?'checked':''} ${options.scheduleAvailable===false?'disabled':''}><span><strong>Adapter le parcours aux horaires</strong><small>${options.scheduleAvailable===false?'La table de calendriers V5 nécessaire est indisponible.':'Le calendrier décide si l’appel peut rejoindre les équipes.'}</small></span></label>${form.scheduleEnabled?resource('Calendrier Genesys','scheduleGroup',form.scheduleGroup,schedule,context,{schemaKey:'SCHEDULE_GROUP',required:true})+'<p class="wizard-hint">Pendant l’ouverture : poursuivre le parcours. En dehors des horaires, pendant les vacances ou en urgence : terminer l’appel. Ces branches resteront modifiables dans le designer.</p>':''}</section>`;
+function welcome(form, options, context) {
+  const entry = entryFor(options, 'inboundcall'),
+    language = schemaField(entry, 'LANGUAGE'),
+    welcome = schemaField(entry, 'WELCOME_AUDIO'),
+    value = form.welcomeValues?.LANGUAGE ?? language?.default ?? language?.schema?.default ?? '';
+  return (
+    intro('message', 'Message d’accueil', 'Premier message entendu au début de l’appel.') +
+    (language
+      ? select('Langue du parcours', 'LANGUAGE', value, languageOptions(language.schema, value), {
+          group: 'welcome',
+          required: language.required,
+        })
+      : '') +
+    (welcome
+      ? audio(
+          'Message d’accueil',
+          'WELCOME_AUDIO',
+          form.welcomeValues?.WELCOME_AUDIO ?? welcome.default ?? welcome.schema?.default ?? '',
+          entry,
+          form,
+          context,
+          { group: 'welcome' },
+        )
+      : '<div class="wizard-info"><p>Cette table V5 ne comporte pas de message d’accueil. Vous pourrez compléter les étapes dans le designer.</p></div>') +
+    '<p class="wizard-hint">Vous pourrez modifier ces réglages à tout moment dans la vue métier.</p>'
+  );
 }
-function teams(form,options,context){
- const service=entryFor(options,'service'),priority=schemaField(service,'PRIORITY'),wait=schemaField(service,'INQUEUE_HOLD_TIMEOUT_INIT');
- const teamFields=(choice,index)=>`<div class="wizard-fields">${resource('File de destination',index==null?'queue':'queue',choice.queue,service,context,{schemaKey:'QUEUE',group:index==null?'field':'choice',index,required:true})}${priority?input('Priorité de distribution','priority',choice.priority??priority.default??priority.schema?.default??'',{group:index==null?'field':'choice',index,helper:'Laissez vide pour utiliser la valeur par défaut de votre table V5.'}):''}</div>`;
- return intro('people','Équipes de traitement','Files Genesys de l’organisation qui reçoivent les appels.')+(form.routing==='menu'?`<div class="wizard-team-list">${list(form.choices).map((choice,index)=>`<article class="wizard-team-card"><header><span class="wizard-key">${esc(choice.digit)}</span><h3>${esc(choice.label||`Choix ${choice.digit}`)}</h3></header>${teamFields(choice,index)}</article>`).join('')}</div>`:teamFields(form))+(wait?`<section class="wizard-schedule">${input('Durée initiale d’attente (secondes)','waitSeconds',form.waitSeconds??wait.default??wait.schema?.default??'',{type:'number',extra:'min="0" step="1"',helper:'Sans réponse, la suite dépend du cycle d’attente. Vous pourrez ajouter un débordement dans le designer.'})}</section>`:'')+`<div class="wizard-info">${icon('clock')}<p>La distribution utilise les réglages par défaut de votre table V5. La sortie après attente termine l’appel ; vous pourrez ajouter une équipe de débordement dans le designer.</p></div>`;
+function routing(form, options, context) {
+  const schedule = entryFor(options, 'schedulegroup'),
+    menu = entryFor(options, 'menu');
+  const choices = list(form.choices),
+    digits = list(options.menuDigits).length ? options.menuDigits : [];
+  return (
+    intro(
+      'menu',
+      'Orientation des appels',
+      'Accès direct à une équipe, ou menu à plusieurs choix.',
+    ) +
+    select(
+      'Mode d’orientation',
+      'routing',
+      form.routing || 'direct',
+      [
+        { value: 'direct', label: 'Vers une équipe', disabled: options.directAvailable === false },
+        {
+          value: 'menu',
+          label: 'Menu vocal avec plusieurs choix',
+          disabled: options.menuAvailable === false,
+        },
+      ],
+      { required: true },
+    ) +
+    `<div class="wizard-routing-description">${icon(form.routing === 'menu' ? 'menu' : 'people')}<p>${form.routing === 'menu' ? 'L’appelant choisit une touche. Chaque choix mène à l’équipe que vous définirez à l’étape suivante.' : 'L’appel est envoyé à l’équipe que vous choisirez à l’étape suivante.'}</p></div>` +
+    (form.routing === 'menu'
+      ? `<section class="wizard-choices"><h3>Les choix du menu</h3><div class="wizard-choice-edit-list">${choices
+          .map(
+            (choice, index) =>
+              `<article class="wizard-choice-edit"><div class="wizard-choice-edit-fields">${select(
+                'Touche',
+                'digit',
+                choice.digit,
+                digits.map((d) => ({
+                  value: d,
+                  label: d === '*' ? 'Étoile (*)' : d === '#' ? 'Dièse (#)' : d,
+                })),
+                { group: 'choice', index, required: true },
+              )}${input('Nom du choix', 'label', choice.label, { group: 'choice', index, required: true })}</div>${btn(icon('close'), 'wizard-remove-choice', 'quiet', `data-index="${index}" aria-label="Supprimer le choix ${index + 1}" ${choices.length <= 2 ? 'disabled' : ''}`)}</article>`,
+          )
+          .join(
+            '',
+          )}</div>${btn(icon('plus') + ' Ajouter un choix', 'wizard-add-choice', 'secondary', choices.length >= digits.length ? 'disabled' : '')}${schemaField(menu, 'MENU_AUDIO') ? audio('Message du menu', 'menuAudio', form.menuAudio || '', menu, form, context, { schemaKey: 'MENU_AUDIO', required: true }) : ''}${
+          schemaField(menu, 'MENU_TIMEOUT')
+            ? select(
+                'Délai de réponse au menu',
+                'menuTimeout',
+                form.menuTimeout,
+                [3, 5, 7, 10, 12].map((v) => ({ value: String(v), label: `${v} secondes` })),
+                { required: true },
+              )
+            : ''
+        }<p class="wizard-hint">Annoncez les touches dans le message du menu. Sans choix valide, l’appel se termine ; cette branche pourra être adaptée dans le designer.</p></section>`
+      : '') +
+    `<section class="wizard-schedule"><label class="wizard-switch"><input ${attrs('field', 'scheduleEnabled', undefined, 'boolean')} type="checkbox" ${form.scheduleEnabled ? 'checked' : ''} ${options.scheduleAvailable === false ? 'disabled' : ''}><span><strong>Adapter le parcours aux horaires</strong><small>${options.scheduleAvailable === false ? 'La table de calendriers V5 nécessaire est indisponible.' : 'Le calendrier décide si l’appel peut rejoindre les équipes.'}</small></span></label>${form.scheduleEnabled ? resource('Calendrier Genesys', 'scheduleGroup', form.scheduleGroup, schedule, context, { schemaKey: 'SCHEDULE_GROUP', required: true }) + '<p class="wizard-hint">Pendant l’ouverture : poursuivre le parcours. En dehors des horaires, pendant les vacances ou en urgence : terminer l’appel. Ces branches resteront modifiables dans le designer.</p>' : ''}</section>`
+  );
 }
-function preview(form,{compact=false}={}){
- const choices=form.routing==='menu'?list(form.choices):[{label:'Équipe de traitement',queue:form.queue}];
- return `<div class="wizard-preview ${compact?'compact':''}" aria-label="Aperçu du parcours"><div class="wizard-preview-node entry">${icon('phone')}<span><strong>${esc(form.name||'Nouveau parcours')}</strong><small>${esc(form.phone||'Numéro à renseigner')}</small></span></div><div class="wizard-preview-line"></div><div class="wizard-preview-node">${icon('message')}<span><strong>Accueil</strong><small>${form.welcomeValues?.WELCOME_AUDIO?'Message configuré':'Selon vos réglages d’accueil'}</small></span></div>${form.scheduleEnabled?`<div class="wizard-preview-line"></div><div class="wizard-preview-node">${icon('clock')}<span><strong>Horaires</strong><small>${esc(form.scheduleGroup||'Calendrier à choisir')}</small></span></div><p class="wizard-preview-condition">Pendant l’ouverture</p>`:'<div class="wizard-preview-line"></div>'}${form.routing==='menu'?`<div class="wizard-preview-node">${icon('menu')}<span><strong>Menu vocal</strong><small>${choices.length} choix</small></span></div><div class="wizard-preview-line"></div>`:''}<div class="wizard-preview-teams">${choices.map(c=>`<div class="wizard-preview-node team">${form.routing==='menu'?`<span class="wizard-key">${esc(c.digit)}</span>`:icon('people')}<span><strong>${esc(c.label||'Équipe de traitement')}</strong><small>${esc(c.queue||'File à choisir')}</small></span></div>`).join('')}</div></div>`;
+function teams(form, options, context) {
+  const service = entryFor(options, 'service'),
+    priority = schemaField(service, 'PRIORITY'),
+    wait = schemaField(service, 'INQUEUE_HOLD_TIMEOUT_INIT');
+  const teamFields = (choice, index) =>
+    `<div class="wizard-fields">${resource('File de destination', index == null ? 'queue' : 'queue', choice.queue, service, context, { schemaKey: 'QUEUE', group: index == null ? 'field' : 'choice', index, required: true })}${priority ? input('Priorité de distribution', 'priority', choice.priority ?? priority.default ?? priority.schema?.default ?? '', { group: index == null ? 'field' : 'choice', index, helper: 'Laissez vide pour utiliser la valeur par défaut de votre table V5.' }) : ''}</div>`;
+  return (
+    intro(
+      'people',
+      'Équipes de traitement',
+      'Files Genesys de l’organisation qui reçoivent les appels.',
+    ) +
+    (form.routing === 'menu'
+      ? `<div class="wizard-team-list">${list(form.choices)
+          .map(
+            (choice, index) =>
+              `<article class="wizard-team-card"><header><span class="wizard-key">${esc(choice.digit)}</span><h3>${esc(choice.label || `Choix ${choice.digit}`)}</h3></header>${teamFields(choice, index)}</article>`,
+          )
+          .join('')}</div>`
+      : teamFields(form)) +
+    (wait
+      ? `<section class="wizard-schedule">${input('Durée initiale d’attente (secondes)', 'waitSeconds', form.waitSeconds ?? wait.default ?? wait.schema?.default ?? '', { type: 'number', extra: 'min="0" step="1"', helper: 'Sans réponse, la suite dépend du cycle d’attente. Vous pourrez ajouter un débordement dans le designer.' })}</section>`
+      : '') +
+    `<div class="wizard-info">${icon('clock')}<p>La distribution utilise les réglages par défaut de votre table V5. La sortie après attente termine l’appel ; vous pourrez ajouter une équipe de débordement dans le designer.</p></div>`
+  );
 }
-function review(form,plan){
- const rows=list(plan?.createdRows),notices=list(plan?.summary?.notices);
- const entry=rows.find(r=>/^W_INBOUND_CALL_v5$/i.test(r.tableName))?.row||form.welcomeValues||{},menu=rows.find(r=>/^W_MENU_v5$/i.test(r.tableName))?.row||{},teams=rows.filter(r=>/^W_SERVICES_v5$/i.test(r.tableName)).map(r=>r.row);
- const audioText=value=>value?(/^tts:/i.test(String(value))?'Texte à lire : '+String(value).slice(4):/^pr:|^prompt:/i.test(String(value))?'Message enregistré : '+String(value).replace(/^(?:pr|prompt):/i,''):String(value)):'Aucun message';
- const details=[['Message d’accueil',audioText(entry.WELCOME_AUDIO??form.welcomeValues?.WELCOME_AUDIO)],['Langue',entry.LANGUAGE??form.welcomeValues?.LANGUAGE??'Non renseignée']];
- if(form.routing==='menu'){details.push(['Message du menu',audioText(menu.MENU_AUDIO??form.menuAudio)]);if(menu.MENU_TIMEOUT!=null||form.menuTimeout!=null)details.push(['Délai de réponse au menu',`${menu.MENU_TIMEOUT??form.menuTimeout} secondes`]);}
- const chosenTeams=form.routing==='menu'?list(form.choices):[{label:'Équipe de traitement',queue:form.queue,priority:form.priority}];
- chosenTeams.forEach(choice=>{const row=teams.find(t=>t.QUEUE===choice.queue&&String(t.PRIORITY??'')===String(choice.priority??''))||teams.find(t=>t.QUEUE===choice.queue);details.push([form.routing==='menu'?`Touche ${choice.digit} · ${choice.label}`:'Équipe de traitement',`${choice.queue||'File à choisir'} · priorité ${[row?.PRIORITY,choice.priority].find(value=>value!=null&&value!=='')??'par défaut'}`]);});
- const wait=teams[0]?.INQUEUE_HOLD_TIMEOUT_INIT??form.waitSeconds;if(wait!=null&&String(wait)!=='')details.push(['Durée initiale d’attente',`${wait} secondes`]);
- return intro('circlecheck','Vérification','Choix et branches à relire avant la création du parcours.')+preview(form)+`<div class="wizard-review-stats"><div><strong>${rows.length}</strong><span>${rows.length>1?'étapes':'étape'} V5 à créer</span></div><div><strong>${form.routing==='menu'?list(form.choices).length:1}</strong><span>équipe(s) de destination</span></div></div><section class="wizard-review-settings"><h3>Réglages du parcours</h3><dl>${details.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>${notices.length?`<div class="wizard-review-notices">${notices.map(n=>`<p>${icon('alert')}${esc(typeof n==='string'?n:n.message||'')}</p>`).join('')}</div>`:''}${rows.length?`<details class="wizard-technical"><summary>Voir les étapes et leurs tables V5</summary><ul>${rows.map(row=>`<li><strong>${esc(row.row?.DESCRIPTION||row.row?.key)}</strong><span>${esc(row.tableName)} · ${esc(row.row?.key)}</span></li>`).join('')}</ul></details>`:''}<div class="wizard-info">${icon('shield')}<p>La création ouvre votre parcours dans le designer. Vous pourrez le simuler, le compléter et publier ses changements dans Genesys depuis « Mes changements ».</p></div>`;
+function preview(form, { compact = false } = {}) {
+  const choices =
+    form.routing === 'menu'
+      ? list(form.choices)
+      : [{ label: 'Équipe de traitement', queue: form.queue }];
+  return `<div class="wizard-preview ${compact ? 'compact' : ''}" aria-label="Aperçu du parcours"><div class="wizard-preview-node entry">${icon('phone')}<span><strong>${esc(form.name || 'Nouveau parcours')}</strong><small>${esc(form.phone || 'Numéro à renseigner')}</small></span></div><div class="wizard-preview-line"></div><div class="wizard-preview-node">${icon('message')}<span><strong>Accueil</strong><small>${form.welcomeValues?.WELCOME_AUDIO ? 'Message configuré' : 'Selon vos réglages d’accueil'}</small></span></div>${form.scheduleEnabled ? `<div class="wizard-preview-line"></div><div class="wizard-preview-node">${icon('clock')}<span><strong>Horaires</strong><small>${esc(form.scheduleGroup || 'Calendrier à choisir')}</small></span></div><p class="wizard-preview-condition">Pendant l’ouverture</p>` : '<div class="wizard-preview-line"></div>'}${form.routing === 'menu' ? `<div class="wizard-preview-node">${icon('menu')}<span><strong>Menu vocal</strong><small>${choices.length} choix</small></span></div><div class="wizard-preview-line"></div>` : ''}<div class="wizard-preview-teams">${choices.map((c) => `<div class="wizard-preview-node team">${form.routing === 'menu' ? `<span class="wizard-key">${esc(c.digit)}</span>` : icon('people')}<span><strong>${esc(c.label || 'Équipe de traitement')}</strong><small>${esc(c.queue || 'File à choisir')}</small></span></div>`).join('')}</div></div>`;
+}
+function review(form, plan) {
+  const rows = list(plan?.createdRows),
+    notices = list(plan?.summary?.notices);
+  const entry =
+      rows.find((r) => /^W_INBOUND_CALL_v5$/i.test(r.tableName))?.row || form.welcomeValues || {},
+    menu = rows.find((r) => /^W_MENU_v5$/i.test(r.tableName))?.row || {},
+    teams = rows.filter((r) => /^W_SERVICES_v5$/i.test(r.tableName)).map((r) => r.row);
+  const audioText = (value) =>
+    value
+      ? /^tts:/i.test(String(value))
+        ? 'Texte à lire : ' + String(value).slice(4)
+        : /^pr:|^prompt:/i.test(String(value))
+          ? 'Message enregistré : ' + String(value).replace(/^(?:pr|prompt):/i, '')
+          : String(value)
+      : 'Aucun message';
+  const details = [
+    ['Message d’accueil', audioText(entry.WELCOME_AUDIO ?? form.welcomeValues?.WELCOME_AUDIO)],
+    ['Langue', entry.LANGUAGE ?? form.welcomeValues?.LANGUAGE ?? 'Non renseignée'],
+  ];
+  if (form.routing === 'menu') {
+    details.push(['Message du menu', audioText(menu.MENU_AUDIO ?? form.menuAudio)]);
+    if (menu.MENU_TIMEOUT != null || form.menuTimeout != null)
+      details.push([
+        'Délai de réponse au menu',
+        `${menu.MENU_TIMEOUT ?? form.menuTimeout} secondes`,
+      ]);
+  }
+  const chosenTeams =
+    form.routing === 'menu'
+      ? list(form.choices)
+      : [{ label: 'Équipe de traitement', queue: form.queue, priority: form.priority }];
+  chosenTeams.forEach((choice) => {
+    const row =
+      teams.find(
+        (t) =>
+          t.QUEUE === choice.queue && String(t.PRIORITY ?? '') === String(choice.priority ?? ''),
+      ) || teams.find((t) => t.QUEUE === choice.queue);
+    details.push([
+      form.routing === 'menu' ? `Touche ${choice.digit} · ${choice.label}` : 'Équipe de traitement',
+      `${choice.queue || 'File à choisir'} · priorité ${[row?.PRIORITY, choice.priority].find((value) => value != null && value !== '') ?? 'par défaut'}`,
+    ]);
+  });
+  const wait = teams[0]?.INQUEUE_HOLD_TIMEOUT_INIT ?? form.waitSeconds;
+  if (wait != null && String(wait) !== '')
+    details.push(['Durée initiale d’attente', `${wait} secondes`]);
+  return (
+    intro(
+      'circlecheck',
+      'Vérification',
+      'Choix et branches à relire avant la création du parcours.',
+    ) +
+    preview(form) +
+    `<div class="wizard-review-stats"><div><strong>${rows.length}</strong><span>${rows.length > 1 ? 'étapes' : 'étape'} V5 à créer</span></div><div><strong>${form.routing === 'menu' ? list(form.choices).length : 1}</strong><span>équipe(s) de destination</span></div></div><section class="wizard-review-settings"><h3>Réglages du parcours</h3><dl>${details.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>${notices.length ? `<div class="wizard-review-notices">${notices.map((n) => `<p>${icon('alert')}${esc(typeof n === 'string' ? n : n.message || '')}</p>`).join('')}</div>` : ''}${rows.length ? `<details class="wizard-technical"><summary>Voir les étapes et leurs tables V5</summary><ul>${rows.map((row) => `<li><strong>${esc(row.row?.DESCRIPTION || row.row?.key)}</strong><span>${esc(row.tableName)} · ${esc(row.row?.key)}</span></li>`).join('')}</ul></details>` : ''}<div class="wizard-info">${icon('shield')}<p>La création ouvre votre parcours dans le designer. Vous pourrez le simuler, le compléter et publier ses changements dans Genesys depuis « Mes changements ».</p></div>`
+  );
 }
 
 /** Pure guided creation view; state, validation and writes belong to the caller. */
-export function flowWizardView({step=0,form={},options={},plan=null,error='',resourceStates,connected=false,coreModel=null}={}){
- step=Math.max(0,Math.min(4,Number(step)||0));
- const context={resourceStates,connected},errors=[error,...list(plan?.errors).map(e=>e.message||String(e))].filter(Boolean),available=options.available!==false;
- const body=!available?`<div class="wizard-unavailable">${icon('database')}<h2>Création indisponible</h2><p>${esc(options.reason||'Les tables V5 nécessaires doivent être accessibles dans votre organisation.')}</p></div>`:[()=>identity(form,options,context),()=>welcome(form,options,context),()=>routing(form,options,context),()=>teams(form,options,context),()=>review(form,plan)][step]();
- return head(coreModel?'CRÉATION D’UN CORE MODEL · '+coreModel.version:'CRÉATION GUIDÉE · WOLF V5',coreModel?coreModel.name:'Créer un parcours',coreModel?'Construisez le parcours de référence. Le Core Model sera partagé dans Genesys à la publication.':'Cinq étapes : identité, accueil, orientation, équipes et vérification.',btn(icon('close')+' Fermer','wizard-cancel','secondary'))+`<section class="flow-wizard"><ol class="wizard-progress" aria-label="Étapes de création">${steps.map((label,index)=>`<li class="${index===step?'active':index<step?'done':''}" ${index===step?'aria-current="step"':''}><span>${index<step?icon('check'):index+1}</span><strong>${label}</strong></li>`).join('')}</ol>${errors.length?`<div class="wizard-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div></div>`:''}<div class="wizard-workspace ${step===4?'is-review':''}"><div class="wizard-main">${body}</div>${step<4?`<aside class="wizard-aside"><div class="eyebrow">APERÇU DU PARCOURS</div>${preview(form,{compact:true})}<p>Chaque choix crée des étapes WOLF V5, modifiables ensuite dans le designer.</p></aside>`:''}</div><footer class="wizard-footer"><span>Étape ${step+1} sur ${steps.length}<small>${esc(steps[step])}</small></span><div>${step>0?btn('Précédent','wizard-back','secondary'):btn('Annuler','wizard-cancel','quiet')}${step===4?plan?.ok?btn(icon('check')+(coreModel?'Préparer le Core Model':' Créer le parcours'),'wizard-apply','primary',errors.length?'disabled':''):btn('Vérifier à nouveau','wizard-review','primary',!available?'disabled':''):btn(step===3?'Vérifier mon parcours':'Continuer '+icon('chevron'),'wizard-next','primary',!available?'disabled':'')}</div></footer></section>`;
+export function flowWizardView({
+  step = 0,
+  form = {},
+  options = {},
+  plan = null,
+  error = '',
+  resourceStates,
+  connected = false,
+  coreModel = null,
+} = {}) {
+  step = Math.max(0, Math.min(4, Number(step) || 0));
+  const context = { resourceStates, connected },
+    errors = [error, ...list(plan?.errors).map((e) => e.message || String(e))].filter(Boolean),
+    available = options.available !== false;
+  const body = !available
+    ? `<div class="wizard-unavailable">${icon('database')}<h2>Création indisponible</h2><p>${esc(options.reason || 'Les tables V5 nécessaires doivent être accessibles dans votre organisation.')}</p></div>`
+    : [
+        () => identity(form, options, context),
+        () => welcome(form, options, context),
+        () => routing(form, options, context),
+        () => teams(form, options, context),
+        () => review(form, plan),
+      ][step]();
+  return (
+    head(
+      coreModel ? 'CRÉATION D’UN CORE MODEL · ' + coreModel.version : 'CRÉATION GUIDÉE · WOLF V5',
+      coreModel ? coreModel.name : 'Créer un parcours',
+      coreModel
+        ? 'Construisez le parcours de référence. Le Core Model sera partagé dans Genesys à la publication.'
+        : 'Cinq étapes : identité, accueil, orientation, équipes et vérification.',
+      btn(icon('close') + ' Fermer', 'wizard-cancel', 'secondary'),
+    ) +
+    `<section class="flow-wizard"><ol class="wizard-progress" aria-label="Étapes de création">${steps.map((label, index) => `<li class="${index === step ? 'active' : index < step ? 'done' : ''}" ${index === step ? 'aria-current="step"' : ''}><span>${index < step ? icon('check') : index + 1}</span><strong>${label}</strong></li>`).join('')}</ol>${errors.length ? `<div class="wizard-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div></div>` : ''}<div class="wizard-workspace ${step === 4 ? 'is-review' : ''}"><div class="wizard-main">${body}</div>${step < 4 ? `<aside class="wizard-aside"><div class="eyebrow">APERÇU DU PARCOURS</div>${preview(form, { compact: true })}<p>Chaque choix crée des étapes WOLF V5, modifiables ensuite dans le designer.</p></aside>` : ''}</div><footer class="wizard-footer"><span>Étape ${step + 1} sur ${steps.length}<small>${esc(steps[step])}</small></span><div>${step > 0 ? btn('Précédent', 'wizard-back', 'secondary') : btn('Annuler', 'wizard-cancel', 'quiet')}${step === 4 ? (plan?.ok ? btn(icon('check') + (coreModel ? 'Préparer le Core Model' : ' Créer le parcours'), 'wizard-apply', 'primary', errors.length ? 'disabled' : '') : btn('Vérifier à nouveau', 'wizard-review', 'primary', !available ? 'disabled' : '')) : btn(step === 3 ? 'Vérifier mon parcours' : 'Continuer ' + icon('chevron'), 'wizard-next', 'primary', !available ? 'disabled' : '')}</div></footer></section>`
+  );
 }

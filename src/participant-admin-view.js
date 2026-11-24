@@ -1,23 +1,184 @@
-import {esc,head,btn,icon,notice} from './ui-kit.js';
-import {PARTICIPANT_CATALOGUE,PARTICIPANT_TYPES,participantChoices,participantUsage,catalogueNeedsUpgrade} from './participant-catalogue.js';
-import {renderParticipantValue} from './participant-value-control.js';
-export function participantEditor(row=null){return {before:row?structuredClone(row):null,key:row?.key||'',label:row?.LABEL||'',divisionId:row?.DIVISION_ID||'',type:row?.VALUE_TYPE||'text',defaultEnabled:Boolean(row?.DEFAULT_VALUE),defaultValue:row?.DEFAULT_VALUE||'',choices:row?participantChoices(row).map(c=>({...c})):[],review:null};}
-export function participantEditorRow(editor,divisions){const division=divisions.find(d=>d.id===editor.divisionId);return {key:editor.key.trim(),LABEL:editor.label.trim(),DIVISION:division?.name||'',DIVISION_ID:division?.id||'',VALUE_TYPE:editor.type,DEFAULT_VALUE:editor.defaultEnabled?editor.defaultValue:'',ALLOWED_VALUES:editor.type==='list'?JSON.stringify(editor.choices):''};}
-export function participantAdminView(state,{catalogue,divisions=[],snapshot,busy=false}={}){
- const rows=catalogue?.table?.rows||[],editor=state.editor;
- const alert=state.error?`<div class="error-box participant-admin-error" role="alert" tabindex="-1">${esc(state.error)}</div>`:'';
- const top=head('ADMINISTRATION','Catalogue des données','Définissez les données et leurs valeurs autorisées. Les parcours utilisent ce référentiel partagé dans Genesys.',btn('Actualiser','participant-admin-refresh','secondary',busy?'disabled':'')+btn(icon('plus')+' Créer une donnée','participant-admin-new','primary',busy||catalogue?.status!=='ready'||catalogueNeedsUpgrade(catalogue.table)?'disabled':''));
- if(!catalogue||catalogue.status==='loading')return top+notice('Lecture du catalogue Genesys…');
- if(catalogue.status==='missing')return top+`<section class="editor-card"><h2>Initialiser le catalogue partagé</h2><p>Créez la table dédiée aux définitions des données.</p><div class="field"><label for="participant-admin-host">Division qui héberge le catalogue</label><select id="participant-admin-host"><option value="">Choisir…</option>${divisions.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select></div>${alert}${btn('Créer le catalogue dans Genesys','participant-admin-initialize','primary',busy?'disabled':'')}</section>`;
- if(catalogue.status!=='ready')return top+alert+notice(esc(catalogue.error||'Connectez-vous à Genesys pour administrer le catalogue.'),'warning');
- if(catalogueNeedsUpgrade(catalogue.table))return top+`<section class="editor-card"><h2>Activer les types et les listes</h2><p>Ajouter une colonne de choix autorisés au catalogue dédié. Les ${rows.length} définitions actuelles et les tables WOLF sont conservées.</p><p class="helper">${PARTICIPANT_CATALOGUE} · nouvelle colonne ALLOWED_VALUES</p>${alert}${btn(busy?'Activation en cours…':'Activer le catalogue typé','participant-admin-upgrade','primary',busy?'disabled':'')}</section>`;
- if(state.importPlan){const plan=state.importPlan;return top+`<section class="editor-card"><h2>Vérifier l’import</h2><p>${plan.rows.length} donnée(s) à ajouter · ${plan.skipped} déjà présente(s) · ${plan.warnings.length} point(s) à vérifier.</p><p>Division commune : ${esc(plan.sharedDivision.name)}. Les parcours existants restent inchangés.</p><div class="catalogue-import-table"><table><thead><tr><th>Clé</th><th>Libellé</th><th>Type</th><th>Division</th><th>Valeur par défaut</th></tr></thead><tbody>${plan.rows.map(r=>`<tr><th>${esc(r.key)}</th><td>${esc(r.LABEL)}</td><td>${PARTICIPANT_TYPES[r.VALUE_TYPE]}</td><td>${esc(r.DIVISION)}</td><td>${esc(r.DEFAULT_VALUE||'Aucune')}</td></tr>`).join('')}</tbody></table></div>${plan.warnings.map(w=>notice(esc(w),'warning')).join('')}${alert}<div class="participant-admin-actions">${btn('Retour','participant-admin-import-cancel','secondary')}${btn('Préparer la publication','participant-admin-import-stage','primary',plan.rows.length?'':'disabled')}</div></section>`;}
- if(editor){
-  const row=editor.review?.after||participantEditorRow(editor,divisions);let uses=[],usageWarning='';try{uses=participantUsage(snapshot,row.key);}catch{usageWarning='Les utilisations ne sont pas vérifiables : une configuration existante est invalide. Le contrôle Genesys reste nécessaire.';}const preview={...row,ALLOWED_VALUES:editor.type==='list'?JSON.stringify(editor.choices.filter(c=>c.value.trim()&&c.label.trim())):''};
-  let control;try{control=renderParticipantValue({definition:preview,value:editor.defaultValue,id:'participant-admin-default',attrs:'id="participant-admin-default" data-admin-field="defaultValue"',label:'Valeur par défaut',allowEmpty:true});}catch{control='<p class="helper">Renseignez des choix uniques pour prévisualiser la liste.</p>';}
-  if(editor.review)return top+`<section class="editor-card participant-admin-review"><h2>${editor.before?'Vérifier la modification':'Vérifier la nouvelle donnée'}</h2><dl><div><dt>Clé unique</dt><dd>${esc(row.key)}</dd></div><div><dt>Libellé métier</dt><dd>${esc(row.LABEL)}</dd></div><div><dt>Type</dt><dd>${PARTICIPANT_TYPES[row.VALUE_TYPE]}</dd></div><div><dt>Division</dt><dd>${esc(row.DIVISION)}</dd></div><div><dt>Valeur par défaut</dt><dd>${esc(row.DEFAULT_VALUE||'Aucune')}</dd></div></dl>${row.VALUE_TYPE==='list'?`<h3>Choix autorisés</h3><ul>${participantChoices(row).map(c=>`<li>${esc(c.label)} <code>${esc(c.value)}</code></li>`).join('')}</ul>`:''}${usageWarning?notice(usageWarning,'warning'):''}<p>${uses.length} utilisation(s) trouvée(s) dans les configurations chargées. Les types et valeurs existants ont été contrôlés dans Genesys.</p>${editor.review.dynamic?notice(`${editor.review.dynamic} valeur(s) calculée(s) pendant l’appel : leur contenu réel doit respecter le type choisi.`,'warning'):''}<p class="helper">Cette action enregistre uniquement la définition du catalogue. Les valeurs des parcours ne sont pas remplacées.</p>${alert}<div class="participant-admin-actions">${btn('Modifier','participant-admin-edit-review','secondary',busy?'disabled':'')}${btn(busy?'Enregistrement…':'Enregistrer dans Genesys','participant-admin-save','primary',busy?'disabled':'')}</div></section>`;
-  return top+`<div class="participant-admin-layout"><section class="editor-card"><h2>${editor.before?'Modifier la donnée':'Nouvelle donnée'}</h2><fieldset class="participant-admin-fields" ${busy?'disabled':''}><div class="field-grid"><div class="field"><label for="participant-admin-key">Clé technique unique *</label><input id="participant-admin-key" data-admin-field="key" value="${esc(editor.key)}" maxlength="256" ${editor.before?'readonly':''} placeholder="Ex. STATUT_AGENCE"><small>${editor.before?'La clé est conservée pour protéger les parcours.':'Le nom exact de l’attribut Genesys, sans numéro ajouté.'}</small></div><div class="field"><label for="participant-admin-label">Libellé métier *</label><input id="participant-admin-label" data-admin-field="label" value="${esc(editor.label)}" maxlength="256" placeholder="Ex. Statut de l’agence"></div><div class="field"><label for="participant-admin-type">Type *</label><select id="participant-admin-type" data-admin-field="type">${Object.entries(PARTICIPANT_TYPES).map(([value,label])=>`<option value="${value}" ${value===editor.type?'selected':''}>${label}</option>`).join('')}</select></div><div class="field"><label for="participant-admin-division">Division propriétaire *</label><select id="participant-admin-division" data-admin-field="divisionId"><option value="">Choisir…</option>${divisions.map(d=>`<option value="${esc(d.id)}" ${d.id===editor.divisionId?'selected':''}>${esc(d.name)}</option>`).join('')}</select><small>La division propriétaire décrit la donnée ; elle ne limite pas son utilisation à un seul parcours.</small></div></div>${editor.type==='list'?`<section class="participant-admin-choices"><h3>Valeurs autorisées</h3><p>Le métier choisit un libellé. Le flow reçoit la valeur technique correspondante.</p>${editor.choices.map((c,i)=>`<div class="participant-choice"><div class="field"><label for="choice-label-${i}">Libellé du choix ${i+1}</label><input id="choice-label-${i}" data-admin-choice="${i}" data-choice-part="label" value="${esc(c.label)}" maxlength="256" placeholder="Agence ouverte"></div><div class="field"><label for="choice-value-${i}">Valeur technique ${i+1}</label><input id="choice-value-${i}" data-admin-choice="${i}" data-choice-part="value" value="${esc(c.value)}" maxlength="256" placeholder="OUVERTE" ${editor.before&&participantChoices(editor.before).some(old=>old.value===c.value)?'readonly':''}></div>${btn('Retirer','participant-admin-choice-remove','quiet small',`data-index="${i}" aria-label="Retirer le choix ${i+1}"`)}</div>`).join('')}${btn(icon('plus')+' Ajouter un choix','participant-admin-choice-add','secondary small')}</section>`:''}<section class="participant-admin-default"><label class="check-label"><input id="participant-admin-default-enabled" type="checkbox" ${editor.defaultEnabled?'checked':''}> Proposer une valeur par défaut</label>${editor.defaultEnabled?`<div class="field"><label for="participant-admin-default">Valeur par défaut</label>${control}</div>`:'<p class="helper">Le métier choisira la valeur lors de l’ajout de cette donnée à un parcours.</p>'}</section></fieldset>${alert}<div class="participant-admin-actions">${btn('Annuler','participant-admin-cancel','secondary',busy?'disabled':'')}${btn(busy?'Contrôle Genesys…':'Vérifier la définition','participant-admin-review','primary',busy?'disabled':'')}</div></section><aside class="editor-card participant-admin-help"><h2>${icon('shield')} Des choix guidés</h2><p><strong>Texte</strong> : saisie libre.</p><p><strong>Entier</strong> : nombre sans décimale.</p><p><strong>Oui / Non</strong> : interrupteur.</p><p><strong>Liste</strong> : uniquement les choix définis ici.</p><hr><h3>${uses.length} utilisation(s) existante(s)</h3>${usageWarning?notice(usageWarning,'warning'):''}<p>Un changement incompatible avec une valeur ou une condition utilisée sera refusé.</p><p>Les libellés peuvent évoluer. Les clés techniques restent stables.</p></aside></div>`;
- }
- const visible=rows.filter(r=>(!state.type||r.VALUE_TYPE===state.type)&&(!state.divisionId||r.DIVISION_ID===state.divisionId)&&(!state.query||[r.key,r.LABEL,r.DIVISION].some(v=>v.toLocaleLowerCase('fr').includes(state.query.toLocaleLowerCase('fr')))));
- return top+`<div class="participant-admin-stats">${Object.entries(PARTICIPANT_TYPES).map(([type,label])=>`<div><strong>${rows.filter(r=>r.VALUE_TYPE===type).length}</strong><span>${label}</span></div>`).join('')}</div><section class="participant-admin-toolbar"><div class="field"><label for="participant-admin-search">Rechercher une donnée</label><input id="participant-admin-search" value="${esc(state.query||'')}" placeholder="Nom, libellé, division…" type="search"></div><div class="field"><label for="participant-admin-filter-type">Type</label><select id="participant-admin-filter-type"><option value="">Tous les types</option>${Object.entries(PARTICIPANT_TYPES).map(([type,label])=>`<option value="${type}" ${state.type===type?'selected':''}>${label}</option>`).join('')}</select></div><div class="field"><label for="participant-admin-filter-division">Division propriétaire</label><select id="participant-admin-filter-division"><option value="">Toutes les divisions</option>${divisions.map(d=>`<option value="${esc(d.id)}" ${state.divisionId===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div></section>${alert}<div class="participant-admin-count">${visible.length} donnée(s) · Référentiel partagé Genesys</div><section class="participant-admin-grid">${visible.map(row=>`<article class="participant-definition"><div class="participant-definition-top"><span class="participant-type">${PARTICIPANT_TYPES[row.VALUE_TYPE]}</span><span>${esc(row.DIVISION)}</span></div><h2>${esc(row.LABEL)}</h2><code>${esc(row.key)}</code><p>${row.VALUE_TYPE==='list'?`${participantChoices(row).length} choix autorisés`:'Valeur par défaut : '+esc(row.DEFAULT_VALUE||'aucune')}</p>${row.VALUE_TYPE==='list'?`<div class="participant-choice-tags">${participantChoices(row).slice(0,5).map(c=>`<span>${esc(c.label)}</span>`).join('')}${participantChoices(row).length>5?'<span>…</span>':''}</div>`:''}${btn('Modifier la définition','participant-admin-edit','secondary small',`data-key="${esc(row.key)}"`)}</article>`).join('')||'<p>Aucune donnée ne correspond aux filtres.</p>'}</section><details class="participant-admin-import"><summary>Référencer des attributs WOLF existants</summary><p>Importer les noms absents du catalogue, sans changer les valeurs des parcours. Les attributs partagés utiliseront la division choisie et une valeur par défaut vide.</p><div class="field"><label for="catalogue-import-division">Division des attributs partagés</label><select id="catalogue-import-division"><option value="">Choisir…</option>${divisions.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select></div>${btn('Prévisualiser l’import','participant-admin-import','secondary')}</details>`;
+import { esc, head, btn, icon, notice } from './ui-kit.js';
+import {
+  PARTICIPANT_CATALOGUE,
+  PARTICIPANT_TYPES,
+  participantChoices,
+  participantUsage,
+  catalogueNeedsUpgrade,
+} from './participant-catalogue.js';
+import { renderParticipantValue } from './participant-value-control.js';
+export function participantEditor(row = null) {
+  return {
+    before: row ? structuredClone(row) : null,
+    key: row?.key || '',
+    label: row?.LABEL || '',
+    divisionId: row?.DIVISION_ID || '',
+    type: row?.VALUE_TYPE || 'text',
+    defaultEnabled: Boolean(row?.DEFAULT_VALUE),
+    defaultValue: row?.DEFAULT_VALUE || '',
+    choices: row ? participantChoices(row).map((c) => ({ ...c })) : [],
+    review: null,
+  };
+}
+export function participantEditorRow(editor, divisions) {
+  const division = divisions.find((d) => d.id === editor.divisionId);
+  return {
+    key: editor.key.trim(),
+    LABEL: editor.label.trim(),
+    DIVISION: division?.name || '',
+    DIVISION_ID: division?.id || '',
+    VALUE_TYPE: editor.type,
+    DEFAULT_VALUE: editor.defaultEnabled ? editor.defaultValue : '',
+    ALLOWED_VALUES: editor.type === 'list' ? JSON.stringify(editor.choices) : '',
+  };
+}
+export function participantAdminView(
+  state,
+  { catalogue, divisions = [], snapshot, busy = false } = {},
+) {
+  const rows = catalogue?.table?.rows || [],
+    editor = state.editor;
+  const alert = state.error
+    ? `<div class="error-box participant-admin-error" role="alert" tabindex="-1">${esc(state.error)}</div>`
+    : '';
+  const top = head(
+    'ADMINISTRATION',
+    'Catalogue des données',
+    'Définissez les données et leurs valeurs autorisées. Les parcours utilisent ce référentiel partagé dans Genesys.',
+    btn('Actualiser', 'participant-admin-refresh', 'secondary', busy ? 'disabled' : '') +
+      btn(
+        icon('plus') + ' Créer une donnée',
+        'participant-admin-new',
+        'primary',
+        busy || catalogue?.status !== 'ready' || catalogueNeedsUpgrade(catalogue.table)
+          ? 'disabled'
+          : '',
+      ),
+  );
+  if (!catalogue || catalogue.status === 'loading')
+    return top + notice('Lecture du catalogue Genesys…');
+  if (catalogue.status === 'missing')
+    return (
+      top +
+      `<section class="editor-card"><h2>Initialiser le catalogue partagé</h2><p>Créez la table dédiée aux définitions des données.</p><div class="field"><label for="participant-admin-host">Division qui héberge le catalogue</label><select id="participant-admin-host"><option value="">Choisir…</option>${divisions.map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select></div>${alert}${btn('Créer le catalogue dans Genesys', 'participant-admin-initialize', 'primary', busy ? 'disabled' : '')}</section>`
+    );
+  if (catalogue.status !== 'ready')
+    return (
+      top +
+      alert +
+      notice(
+        esc(catalogue.error || 'Connectez-vous à Genesys pour administrer le catalogue.'),
+        'warning',
+      )
+    );
+  if (catalogueNeedsUpgrade(catalogue.table))
+    return (
+      top +
+      `<section class="editor-card"><h2>Activer les types et les listes</h2><p>Ajouter une colonne de choix autorisés au catalogue dédié. Les ${rows.length} définitions actuelles et les tables WOLF sont conservées.</p><p class="helper">${PARTICIPANT_CATALOGUE} · nouvelle colonne ALLOWED_VALUES</p>${alert}${btn(busy ? 'Activation en cours…' : 'Activer le catalogue typé', 'participant-admin-upgrade', 'primary', busy ? 'disabled' : '')}</section>`
+    );
+  if (state.importPlan) {
+    const plan = state.importPlan;
+    return (
+      top +
+      `<section class="editor-card"><h2>Vérifier l’import</h2><p>${plan.rows.length} donnée(s) à ajouter · ${plan.skipped} déjà présente(s) · ${plan.warnings.length} point(s) à vérifier.</p><p>Division commune : ${esc(plan.sharedDivision.name)}. Les parcours existants restent inchangés.</p><div class="catalogue-import-table"><table><thead><tr><th>Clé</th><th>Libellé</th><th>Type</th><th>Division</th><th>Valeur par défaut</th></tr></thead><tbody>${plan.rows.map((r) => `<tr><th>${esc(r.key)}</th><td>${esc(r.LABEL)}</td><td>${PARTICIPANT_TYPES[r.VALUE_TYPE]}</td><td>${esc(r.DIVISION)}</td><td>${esc(r.DEFAULT_VALUE || 'Aucune')}</td></tr>`).join('')}</tbody></table></div>${plan.warnings.map((w) => notice(esc(w), 'warning')).join('')}${alert}<div class="participant-admin-actions">${btn('Retour', 'participant-admin-import-cancel', 'secondary')}${btn('Préparer la publication', 'participant-admin-import-stage', 'primary', plan.rows.length ? '' : 'disabled')}</div></section>`
+    );
+  }
+  if (editor) {
+    const row = editor.review?.after || participantEditorRow(editor, divisions);
+    let uses = [],
+      usageWarning = '';
+    try {
+      uses = participantUsage(snapshot, row.key);
+    } catch {
+      usageWarning =
+        'Les utilisations ne sont pas vérifiables : une configuration existante est invalide. Le contrôle Genesys reste nécessaire.';
+    }
+    const preview = {
+      ...row,
+      ALLOWED_VALUES:
+        editor.type === 'list'
+          ? JSON.stringify(editor.choices.filter((c) => c.value.trim() && c.label.trim()))
+          : '',
+    };
+    let control;
+    try {
+      control = renderParticipantValue({
+        definition: preview,
+        value: editor.defaultValue,
+        id: 'participant-admin-default',
+        attrs: 'id="participant-admin-default" data-admin-field="defaultValue"',
+        label: 'Valeur par défaut',
+        allowEmpty: true,
+      });
+    } catch {
+      control = '<p class="helper">Renseignez des choix uniques pour prévisualiser la liste.</p>';
+    }
+    if (editor.review)
+      return (
+        top +
+        `<section class="editor-card participant-admin-review"><h2>${editor.before ? 'Vérifier la modification' : 'Vérifier la nouvelle donnée'}</h2><dl><div><dt>Clé unique</dt><dd>${esc(row.key)}</dd></div><div><dt>Libellé métier</dt><dd>${esc(row.LABEL)}</dd></div><div><dt>Type</dt><dd>${PARTICIPANT_TYPES[row.VALUE_TYPE]}</dd></div><div><dt>Division</dt><dd>${esc(row.DIVISION)}</dd></div><div><dt>Valeur par défaut</dt><dd>${esc(row.DEFAULT_VALUE || 'Aucune')}</dd></div></dl>${
+          row.VALUE_TYPE === 'list'
+            ? `<h3>Choix autorisés</h3><ul>${participantChoices(row)
+                .map((c) => `<li>${esc(c.label)} <code>${esc(c.value)}</code></li>`)
+                .join('')}</ul>`
+            : ''
+        }${usageWarning ? notice(usageWarning, 'warning') : ''}<p>${uses.length} utilisation(s) trouvée(s) dans les configurations chargées. Les types et valeurs existants ont été contrôlés dans Genesys.</p>${editor.review.dynamic ? notice(`${editor.review.dynamic} valeur(s) calculée(s) pendant l’appel : leur contenu réel doit respecter le type choisi.`, 'warning') : ''}<p class="helper">Cette action enregistre uniquement la définition du catalogue. Les valeurs des parcours ne sont pas remplacées.</p>${alert}<div class="participant-admin-actions">${btn('Modifier', 'participant-admin-edit-review', 'secondary', busy ? 'disabled' : '')}${btn(busy ? 'Enregistrement…' : 'Enregistrer dans Genesys', 'participant-admin-save', 'primary', busy ? 'disabled' : '')}</div></section>`
+      );
+    return (
+      top +
+      `<div class="participant-admin-layout"><section class="editor-card"><h2>${editor.before ? 'Modifier la donnée' : 'Nouvelle donnée'}</h2><fieldset class="participant-admin-fields" ${busy ? 'disabled' : ''}><div class="field-grid"><div class="field"><label for="participant-admin-key">Clé technique unique *</label><input id="participant-admin-key" data-admin-field="key" value="${esc(editor.key)}" maxlength="256" ${editor.before ? 'readonly' : ''} placeholder="Ex. STATUT_AGENCE"><small>${editor.before ? 'La clé est conservée pour protéger les parcours.' : 'Le nom exact de l’attribut Genesys, sans numéro ajouté.'}</small></div><div class="field"><label for="participant-admin-label">Libellé métier *</label><input id="participant-admin-label" data-admin-field="label" value="${esc(editor.label)}" maxlength="256" placeholder="Ex. Statut de l’agence"></div><div class="field"><label for="participant-admin-type">Type *</label><select id="participant-admin-type" data-admin-field="type">${Object.entries(
+        PARTICIPANT_TYPES,
+      )
+        .map(
+          ([value, label]) =>
+            `<option value="${value}" ${value === editor.type ? 'selected' : ''}>${label}</option>`,
+        )
+        .join(
+          '',
+        )}</select></div><div class="field"><label for="participant-admin-division">Division propriétaire *</label><select id="participant-admin-division" data-admin-field="divisionId"><option value="">Choisir…</option>${divisions.map((d) => `<option value="${esc(d.id)}" ${d.id === editor.divisionId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select><small>La division propriétaire décrit la donnée ; elle ne limite pas son utilisation à un seul parcours.</small></div></div>${editor.type === 'list' ? `<section class="participant-admin-choices"><h3>Valeurs autorisées</h3><p>Le métier choisit un libellé. Le flow reçoit la valeur technique correspondante.</p>${editor.choices.map((c, i) => `<div class="participant-choice"><div class="field"><label for="choice-label-${i}">Libellé du choix ${i + 1}</label><input id="choice-label-${i}" data-admin-choice="${i}" data-choice-part="label" value="${esc(c.label)}" maxlength="256" placeholder="Agence ouverte"></div><div class="field"><label for="choice-value-${i}">Valeur technique ${i + 1}</label><input id="choice-value-${i}" data-admin-choice="${i}" data-choice-part="value" value="${esc(c.value)}" maxlength="256" placeholder="OUVERTE" ${editor.before && participantChoices(editor.before).some((old) => old.value === c.value) ? 'readonly' : ''}></div>${btn('Retirer', 'participant-admin-choice-remove', 'quiet small', `data-index="${i}" aria-label="Retirer le choix ${i + 1}"`)}</div>`).join('')}${btn(icon('plus') + ' Ajouter un choix', 'participant-admin-choice-add', 'secondary small')}</section>` : ''}<section class="participant-admin-default"><label class="check-label"><input id="participant-admin-default-enabled" type="checkbox" ${editor.defaultEnabled ? 'checked' : ''}> Proposer une valeur par défaut</label>${editor.defaultEnabled ? `<div class="field"><label for="participant-admin-default">Valeur par défaut</label>${control}</div>` : '<p class="helper">Le métier choisira la valeur lors de l’ajout de cette donnée à un parcours.</p>'}</section></fieldset>${alert}<div class="participant-admin-actions">${btn('Annuler', 'participant-admin-cancel', 'secondary', busy ? 'disabled' : '')}${btn(busy ? 'Contrôle Genesys…' : 'Vérifier la définition', 'participant-admin-review', 'primary', busy ? 'disabled' : '')}</div></section><aside class="editor-card participant-admin-help"><h2>${icon('shield')} Des choix guidés</h2><p><strong>Texte</strong> : saisie libre.</p><p><strong>Entier</strong> : nombre sans décimale.</p><p><strong>Oui / Non</strong> : interrupteur.</p><p><strong>Liste</strong> : uniquement les choix définis ici.</p><hr><h3>${uses.length} utilisation(s) existante(s)</h3>${usageWarning ? notice(usageWarning, 'warning') : ''}<p>Un changement incompatible avec une valeur ou une condition utilisée sera refusé.</p><p>Les libellés peuvent évoluer. Les clés techniques restent stables.</p></aside></div>`
+    );
+  }
+  const visible = rows.filter(
+    (r) =>
+      (!state.type || r.VALUE_TYPE === state.type) &&
+      (!state.divisionId || r.DIVISION_ID === state.divisionId) &&
+      (!state.query ||
+        [r.key, r.LABEL, r.DIVISION].some((v) =>
+          v.toLocaleLowerCase('fr').includes(state.query.toLocaleLowerCase('fr')),
+        )),
+  );
+  return (
+    top +
+    `<div class="participant-admin-stats">${Object.entries(PARTICIPANT_TYPES)
+      .map(
+        ([type, label]) =>
+          `<div><strong>${rows.filter((r) => r.VALUE_TYPE === type).length}</strong><span>${label}</span></div>`,
+      )
+      .join(
+        '',
+      )}</div><section class="participant-admin-toolbar"><div class="field"><label for="participant-admin-search">Rechercher une donnée</label><input id="participant-admin-search" value="${esc(state.query || '')}" placeholder="Nom, libellé, division…" type="search"></div><div class="field"><label for="participant-admin-filter-type">Type</label><select id="participant-admin-filter-type"><option value="">Tous les types</option>${Object.entries(
+      PARTICIPANT_TYPES,
+    )
+      .map(
+        ([type, label]) =>
+          `<option value="${type}" ${state.type === type ? 'selected' : ''}>${label}</option>`,
+      )
+      .join(
+        '',
+      )}</select></div><div class="field"><label for="participant-admin-filter-division">Division propriétaire</label><select id="participant-admin-filter-division"><option value="">Toutes les divisions</option>${divisions.map((d) => `<option value="${esc(d.id)}" ${state.divisionId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div></section>${alert}<div class="participant-admin-count">${visible.length} donnée(s) · Référentiel partagé Genesys</div><section class="participant-admin-grid">${
+      visible
+        .map(
+          (row) =>
+            `<article class="participant-definition"><div class="participant-definition-top"><span class="participant-type">${PARTICIPANT_TYPES[row.VALUE_TYPE]}</span><span>${esc(row.DIVISION)}</span></div><h2>${esc(row.LABEL)}</h2><code>${esc(row.key)}</code><p>${row.VALUE_TYPE === 'list' ? `${participantChoices(row).length} choix autorisés` : 'Valeur par défaut : ' + esc(row.DEFAULT_VALUE || 'aucune')}</p>${
+              row.VALUE_TYPE === 'list'
+                ? `<div class="participant-choice-tags">${participantChoices(row)
+                    .slice(0, 5)
+                    .map((c) => `<span>${esc(c.label)}</span>`)
+                    .join('')}${participantChoices(row).length > 5 ? '<span>…</span>' : ''}</div>`
+                : ''
+            }${btn('Modifier la définition', 'participant-admin-edit', 'secondary small', `data-key="${esc(row.key)}"`)}</article>`,
+        )
+        .join('') || '<p>Aucune donnée ne correspond aux filtres.</p>'
+    }</section><details class="participant-admin-import"><summary>Référencer des attributs WOLF existants</summary><p>Importer les noms absents du catalogue, sans changer les valeurs des parcours. Les attributs partagés utiliseront la division choisie et une valeur par défaut vide.</p><div class="field"><label for="catalogue-import-division">Division des attributs partagés</label><select id="catalogue-import-division"><option value="">Choisir…</option>${divisions.map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select></div>${btn('Prévisualiser l’import', 'participant-admin-import', 'secondary')}</details>`
+  );
 }

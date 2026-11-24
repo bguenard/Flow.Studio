@@ -12,7 +12,7 @@ Le designer prépare des lignes et des raccordements dans les Data Tables WOLF V
 
 La clé logique de `W_INBOUND_CALL_v5` est `DNIS_SEGMENT`, exposée par Genesys sous le champ physique `key`. La spécification la décrit comme un **numéro ou segment d’entrée**. Pour un premier appel, l’inbound part du DNIS ; une cible `inboundcall` peut aussi désigner une configuration par sa clé. Il faut conserver la clé exacte, sans supprimer d’espaces ou inventer d’alias de colonne absents du schéma.
 
-Un parcours numéroté peut être déclaré comme référence d’un Core Model sans changer sa clé. L’identité du Core Model et celle du parcours WOLF sont séparées. Le référentiel du Studio conserve ce rôle dans la Data Table Genesys dédiée `STUDIO_CORE_MODELS_V5`, partagée entre les utilisateurs de l’organisation ; il ne fige pas pour autant le contenu d’une version, dont les lignes WOLF restent modifiables.
+Un parcours numéroté peut être déclaré comme référence d’un Core Model sans changer sa clé. L’identité du Core Model et celle du parcours WOLF sont séparées. Le référentiel du Studio conserve ce rôle dans la Data Table Genesys dédiée `STUDIO_CORE_MODEL_RECORDS_V5`, partagée entre les utilisateurs de l’organisation ; il ne fige pas pour autant le contenu d’une version, dont les lignes WOLF restent modifiables.
 
 Une création doit vérifier l’unicité de la clé dans la bonne table V5, la présence d’un schéma exploitable, les champs obligatoires et la cohérence des sorties. Un numéro nouveau dans la table ne devient pas automatiquement joignable : le numéro doit déjà être provisionné et routé vers l’inbound WOLF.
 

@@ -20,9 +20,15 @@ export function readSidebarPreference(storage) {
   try {
     const value = storage?.getItem(KEY);
     return value === 'collapsed' ? true : value === 'expanded' ? false : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function writeSidebarPreference(storage, collapsed) {
-  try { storage?.setItem(KEY, collapsed ? 'collapsed' : 'expanded'); } catch { /* le choix vaudra pour cette session seulement */ }
+  try {
+    storage?.setItem(KEY, collapsed ? 'collapsed' : 'expanded');
+  } catch {
+    /* le choix vaudra pour cette session seulement */
+  }
 }

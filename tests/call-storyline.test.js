@@ -2,22 +2,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildVoiceInventory } from '../src/data-source.js';
 import { demoSnapshot } from '../src/demo-snapshot.js';
-import { businessSteps, businessWorkspace, availableBusinessTasks, primaryBusinessTasks, taskFields } from '../src/business-workspace.js';
+import {
+  businessSteps,
+  businessWorkspace,
+  availableBusinessTasks,
+  primaryBusinessTasks,
+  taskFields,
+} from '../src/business-workspace.js';
 import { businessBranches, businessBranchView } from '../src/business-branches.js';
 import { businessInspectorModel } from '../src/journey-audience.js';
 import { stepIcon } from '../src/journey-navigation.js';
 import { icon } from '../src/ui-kit.js';
 
-const flow = buildVoiceInventory(demoSnapshot).flows.find(item => item.key === 'DEMO_ENTREE_ATLANTIQUE');
-const steps = html => html.split('<li class="story-step').slice(1);
-const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const flow = buildVoiceInventory(demoSnapshot).flows.find(
+  (item) => item.key === 'DEMO_ENTREE_ATLANTIQUE',
+);
+const steps = (html) => html.split('<li class="story-step').slice(1);
+const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 test('the call is told step by step, in order, each with the icon of its type', () => {
   const html = steps(businessSteps(flow));
   assert.equal(html.length, flow.nodes.length);
   flow.nodes.forEach((node, index) => {
     assert.match(html[index], new RegExp(`data-step="${index}"`));
-    assert.ok(html[index].includes(`<span class="story-icon">${icon(stepIcon(node.type))}</span>`), node.type);
+    assert.ok(
+      html[index].includes(`<span class="story-icon">${icon(stepIcon(node.type))}</span>`),
+      node.type,
+    );
     assert.ok(html[index].includes(`ÉTAPE ${String(index + 1).padStart(2, '0')}`));
   });
 });
@@ -27,11 +38,17 @@ test('each step shows what the caller hears and where each branch leads', () => 
   assert.match(entry, /Message d’accueil « Bienvenue à l’agence Atlantique\./);
   assert.match(hours, /Demo Cal Atlantique/);
   assert.match(hours, /Pendant l’ouverture .*Orienter la demande · Atlantique/);
-  assert.match(hours, /En dehors des horaires .*Fin d’appel .*« Nos conseillers vous accueillent du lundi/);
+  assert.match(
+    hours,
+    /En dehors des horaires .*Fin d’appel .*« Nos conseillers vous accueillent du lundi/,
+  );
   assert.match(menu, /Choix 1 .*Déclarer ou suivre un sinistre/);
   assert.match(menu, /Choix 2 .*Gérer un contrat/);
   assert.match(team, /Demo EQ Atl Sinistres/);
-  assert.match(team, /Après l’attente .*Fin d’appel .*« Tous nos conseillers sont actuellement occupés/);
+  assert.match(
+    team,
+    /Après l’attente .*Fin d’appel .*« Tous nos conseillers sont actuellement occupés/,
+  );
   // The queue is a fact of the team step, not one more branch to read.
   assert.doesNotMatch(team, /Mise en relation avec l’équipe/);
 });
@@ -43,13 +60,18 @@ test('a transition message is shown once, with its branch', () => {
 
 test('a branch leads to the step it names', () => {
   const menu = steps(businessSteps(flow))[2];
-  const target = flow.nodes.findIndex(node => node.key === 'DEMO_ATL_SINISTRES');
-  assert.match(menu, new RegExp(`<button[^>]*data-action="business-edit"[^>]*data-node="${target}"[^>]*>Déclarer ou suivre un sinistre</button>`));
+  const target = flow.nodes.findIndex((node) => node.key === 'DEMO_ATL_SINISTRES');
+  assert.match(
+    menu,
+    new RegExp(
+      `<button[^>]*data-action="business-edit"[^>]*data-node="${target}"[^>]*>Déclarer ou suivre un sinistre</button>`,
+    ),
+  );
 });
 
 test('a rubric keeps only the steps and settings it concerns', () => {
   const teams = steps(businessSteps(flow, { task: 'team' }));
-  assert.equal(teams.length, flow.nodes.filter(node => node.type === 'service').length);
+  assert.equal(teams.length, flow.nodes.filter((node) => node.type === 'service').length);
   assert.match(text(teams[0]), /File de destination|Équipe/);
   assert.match(text(teams[0]), /Priorité/);
   assert.doesNotMatch(teams.join(''), /story-branches/);
@@ -66,10 +88,37 @@ test('search finds a step by its messages and by the branch that leads to it', (
 });
 
 test('attached client data stays out of the call story but remains reachable in its rubric', () => {
-  const schema = { type: 'object', required: ['key'], properties: { key: { type: 'string' }, DESCRIPTION: { type: 'string' }, PDATA_LIST_1: { type: 'string' } } };
-  const context = { id: 'p', key: 'CTX', type: 'pdata', label: 'Attributs métier', tableName: 'W_PARTICIPANT_DATA_v5', schema, row: { key: 'CTX', DESCRIPTION: 'Motif sinistres', PDATA_LIST_1: 'MOTIF==sinistre' } };
-  const entry = { id: 'e', key: '+331', type: 'inboundcall', label: 'Accueil', tableName: 'W_INBOUND_CALL_v5', row: { key: '+331', DESCRIPTION: 'Accueil', WELCOME_AUDIO: 'tts:Bonjour' } };
-  const small = { id: 'e', nodes: [entry, context], edges: [{ from: 'e', to: 'p', relationship: 'context', resolved: true }] };
+  const schema = {
+    type: 'object',
+    required: ['key'],
+    properties: {
+      key: { type: 'string' },
+      DESCRIPTION: { type: 'string' },
+      PDATA_LIST_1: { type: 'string' },
+    },
+  };
+  const context = {
+    id: 'p',
+    key: 'CTX',
+    type: 'pdata',
+    label: 'Attributs métier',
+    tableName: 'W_PARTICIPANT_DATA_v5',
+    schema,
+    row: { key: 'CTX', DESCRIPTION: 'Motif sinistres', PDATA_LIST_1: 'MOTIF==sinistre' },
+  };
+  const entry = {
+    id: 'e',
+    key: '+331',
+    type: 'inboundcall',
+    label: 'Accueil',
+    tableName: 'W_INBOUND_CALL_v5',
+    row: { key: '+331', DESCRIPTION: 'Accueil', WELCOME_AUDIO: 'tts:Bonjour' },
+  };
+  const small = {
+    id: 'e',
+    nodes: [entry, context],
+    edges: [{ from: 'e', to: 'p', relationship: 'context', resolved: true }],
+  };
   assert.ok(taskFields(context, 'context').length > 0);
   const story = steps(businessSteps(small));
   assert.equal(story.length, 1);
@@ -101,11 +150,23 @@ test('names and messages from the tables are escaped', () => {
 
 test('three rubrics lead; every other rubric stays available in one list', () => {
   const html = businessWorkspace(flow, { task: 'all', query: '' });
-  const tabs = [...html.matchAll(/data-action="business-task"[^>]*data-task="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(tabs, primaryBusinessTasks.filter(id => availableBusinessTasks(flow).some(task => task.id === id)));
+  const tabs = [...html.matchAll(/data-action="business-task"[^>]*data-task="([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  assert.deepEqual(
+    tabs,
+    primaryBusinessTasks.filter((id) =>
+      availableBusinessTasks(flow).some((task) => task.id === id),
+    ),
+  );
   const more = html.match(/<select id="business-task-more"[\s\S]*?<\/select>/)[0];
-  const listed = [...more.matchAll(/<option value="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual([...tabs, ...listed].sort(), availableBusinessTasks(flow).map(task => task.id).sort());
+  const listed = [...more.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(
+    [...tabs, ...listed].sort(),
+    availableBusinessTasks(flow)
+      .map((task) => task.id)
+      .sort(),
+  );
   assert.doesNotMatch(html, /Tous les réglages/);
   assert.match(html, /<ol id="business-steps"/);
   const other = businessWorkspace(flow, { task: listed[0], query: '' });
@@ -113,10 +174,17 @@ test('three rubrics lead; every other rubric stays available in one list', () =>
 });
 
 test('the business editor edits what is said on a branch, not where the branch goes', () => {
-  const node = flow.nodes.find(item => item.type === 'schedulegroup'), model = businessInspectorModel(node);
+  const node = flow.nodes.find((item) => item.type === 'schedulegroup'),
+    model = businessInspectorModel(node);
   const branches = businessBranches(node, model.fields, {}, true);
-  const render = field => `<input data-field="${field.key}">`;
-  const business = businessBranchView(branches, 'CLOSED_TARGET_TYPE', render, {}, { routing: false });
+  const render = (field) => `<input data-field="${field.key}">`;
+  const business = businessBranchView(
+    branches,
+    'CLOSED_TARGET_TYPE',
+    render,
+    {},
+    { routing: false },
+  );
   assert.match(business, /data-field="CLOSED_TARGET_AUDIO"/);
   assert.doesNotMatch(business, /data-field="CLOSED_TARGET_TYPE"|data-field="CLOSED_TARGET"/);
   assert.match(business, /Fin d’appel/);
@@ -127,7 +195,10 @@ test('the business editor edits what is said on a branch, not where the branch g
 
 test('a step is laid out in zones: what it is, what happens there, where the call goes next', () => {
   const hours = steps(businessSteps(flow))[1];
-  assert.match(hours, /<article class="story-card has-here has-next"><header class="story-id">[\s\S]*<\/header><div class="story-here">[\s\S]*<\/div><ul class="story-branches"/);
+  assert.match(
+    hours,
+    /<article class="story-card has-here has-next"><header class="story-id">[\s\S]*<\/header><div class="story-here">[\s\S]*<\/div><ul class="story-branches"/,
+  );
   const teams = steps(businessSteps(flow, { task: 'team' }));
   assert.match(teams[0], /<article class="story-card has-here"><header class="story-id">/);
 });
@@ -145,7 +216,22 @@ test('the end of the call reads differently from a step the call continues to', 
 });
 
 test('the condition of a rule is one of its settings, read like the others', () => {
-  const rule = { id: 'd', key: 'RULE', type: 'decision', label: 'Règle métier', tableName: 'W_DECISION_v5', row: { key: 'RULE', PARTICIPANT_DATA_TO_CHECK: 'CRISE', DECISION_OPERATOR: '==', DECISION_VALUE: 'ACTIF' } };
+  const rule = {
+    id: 'd',
+    key: 'RULE',
+    type: 'decision',
+    label: 'Règle métier',
+    tableName: 'W_DECISION_v5',
+    row: {
+      key: 'RULE',
+      PARTICIPANT_DATA_TO_CHECK: 'CRISE',
+      DECISION_OPERATOR: '==',
+      DECISION_VALUE: 'ACTIF',
+    },
+  };
   const html = steps(businessSteps({ id: 'd', nodes: [rule], edges: [] }))[0];
-  assert.match(html, /<div class="wide"><dt>Condition<\/dt><dd>Crise est égal à Actif<\/dd><\/div>/);
+  assert.match(
+    html,
+    /<div class="wide"><dt>Condition<\/dt><dd>Crise est égal à Actif<\/dd><\/div>/,
+  );
 });

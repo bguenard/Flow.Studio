@@ -8,11 +8,15 @@ Ce dépôt est désormais la source de référence de l’application. Le fronte
 
 ```sh
 nvm use             # si nvm est installé
+npm ci              # installer les outils de développement
+npm run format:check # vérifier la mise en forme
 npm run dev         # http://127.0.0.1:4173/
 npm test            # tests Node.js, sans compte Genesys requis
 npm run build       # application statique dans dist/
 npm run preview     # servir dist/ sur le même port
 ```
+
+Le formatage est assuré par Prettier, installé uniquement comme dépendance de développement. `npm run format` remet en forme les sources, tests et scripts ; les fichiers tiers et les sorties générées sont exclus. Les événements sont gérés dans les modules JavaScript, les styles statiques dans les feuilles CSS et la géométrie calculée dans `src/view-layout.js`, sans attribut `style` ni gestionnaire JavaScript inline.
 
 Arrêter le serveur de développement avant de lancer l’aperçu, ou choisir un autre port avec `PORT=4174 npm run preview`.
 
@@ -190,13 +194,9 @@ Le catalogue est lu après les tables WOLF, sans retarder le premier affichage d
 
 Depuis un parcours ou un Core Model, **Données du parcours** permet de choisir une donnée du catalogue et de renseigner sa valeur avec le contrôle adapté. La création libre d’attributs est réservée au catalogue administrateur. Les conditions utilisent également ce catalogue et ne proposent que les opérateurs compatibles avec le type.
 
-La définition est commune ; la valeur est propre au parcours. Une configuration WOLF contenant une seule donnée et la même valeur peut être réutilisée. Si une valeur diffère ou si une configuration partagée doit être adaptée, une ligne distincte est créée et seul le raccordement du parcours concerné est modifié. Le nom de l’attribut reste identique ; la clé physique de cette configuration peut comporter un identifiant du parcours. Les anciens attributs non référencés restent visibles et conservés, mais doivent être déclarés dans le catalogue avant modification.
+La définition est commune ; la valeur est propre au numéro dans `STUDIO_PARCOURS_INIT_V5`. La vérification prépare le brouillon de cette ligne dédiée ; **Mes changements** le publie après contrôle des types et des choix autorisés. Les raccordements WOLF ne sont pas modifiés par cet écran.
 
-La vérification prépare les brouillons PDATA et le suffixe `|pdata:` de l’entrée. **Mes changements** publie les configurations avant leurs raccordements. Les types et choix autorisés sont relus avant préparation puis avant publication. Les copies de configurations partagées vérifient aussi que leur source n’a pas changé. Les anciens couples nom/valeur inchangés sont préservés.
-
-L’initialisation utilise le mécanisme V5 existant : `SET_PDATA` doit être exécuté par Architect sur la première transition, avant l’étape suivante. Les affectations remplacent les valeurs de même nom à cet instant. Cet écran ne modifie pas les flows Architect et ne prouve pas qu’une donnée est alimentée sur tous les chemins ; une recette téléphonique réelle reste nécessaire. Les données obtenues plus tard pendant l’appel doivent être renseignées par les étapes correspondantes.
-
-La création d’une déclinaison copie les configurations d’initialisation accessibles et réécrit leurs références en conservant noms et valeurs. Il s’agit d’une copie à la création, pas d’un héritage dynamique : les nouvelles versions du Core Model ne propagent pas encore ces valeurs aux enfants. Le catalogue ne stocke pas de statut « hérité / personnalisé » ni de valeur de référence par version.
+Architect doit lire cette table avant les conditions concernées. Les données obtenues plus tard pendant l’appel restent renseignées par les étapes correspondantes. Une déclinaison copie les valeurs à sa création ; les nouvelles versions du Core Model ne les propagent pas automatiquement aux enfants existants.
 
 ## Bibliothèque embarquée
 
@@ -206,11 +206,11 @@ Le Studio fournit à ELK les cartes, leurs sorties et les liens (`src/journey-di
 
 ## Initialisation des participant data par numéro
 
-L’écran **Administration → Initialisation par numéro** crée et remplit la table dédiée `STUDIO_PARCOURS_INIT_V5`. La clé est le numéro exact de l’entrée WOLF (signe `+` conservé). La table comporte `DESCRIPTION`, `DIVISION` et quinze triplets `ATTRIBUTE_01_NAME`, `ATTRIBUTE_01_TYPE`, `ATTRIBUTE_01_VALUE` jusqu’à `ATTRIBUTE_15_*` : 48 colonnes au total.
+L’écran **Administration → Initialisation par numéro** permet de consulter et, si elle manque, de créer la table dédiée `STUDIO_PARCOURS_INIT_V5`. La clé est le numéro exact de l’entrée WOLF (signe `+` conservé). La table comporte `DESCRIPTION`, `DIVISION` et quinze triplets `ATTRIBUTE_01_NAME`, `ATTRIBUTE_01_TYPE`, `ATTRIBUTE_01_VALUE` jusqu’à `ATTRIBUTE_15_*` : 48 colonnes au total.
 
 Les valeurs se modifient dans **Parcours → Données du parcours**, puis suivent la revue et la publication habituelles. Les noms et contraintes proviennent du catalogue administrateur `STUDIO_PARTICIPANT_DATA_V5`. Texte et liste correspondent au type de stockage `string`, entier à `int`, Oui/Non à `bool`. La valeur reste une chaîne exacte ; le type sert à la contrôler. Une liste conserve ses choix autorisés dans le catalogue.
 
-La migration est additive : elle lit uniquement les groupes `pdata:` de la première transition `NEXT_TARGET`, contrôle les types et doublons, puis crée les lignes absentes. Elle relit les sources avant chaque création et vérifie les valeurs enregistrées. Une ligne dédiée existante n’est jamais écrasée ; une différence bloque la migration globale. Les anciennes lignes `*_ACTIVATION`, les suffixes d’entrée et les affectations `*_CONTEXT_*` plus tard dans l’appel restent inchangés.
+Les numéros sans ligne dédiée sont initialisés depuis **Données du parcours**. Le Studio ne copie plus automatiquement les anciens groupes `pdata:` et ne propose plus d’outil de migration. Les lignes WOLF et les affectations de contexte pendant l’appel restent gérées séparément.
 
 **La table seule n’active pas l’initialisation dans Architect.** Le flow doit lire la ligne par numéro et affecter les attributs avant toute condition qui les consulte. La bascule du lecteur et le retrait des anciennes affectations d’entrée sont une étape distincte, à valider par des appels avant nettoyage. Voir [le contrat Architect](docs/INITIALISATION_ARCHITECT.md).
 

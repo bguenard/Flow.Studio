@@ -1,9 +1,83 @@
-import {FLOW_INITIALIZATION,initializationAttributes} from './flow-initialization.js';
-import {esc,head,btn,notice} from './ui-kit.js';
-export function initializationView(state={},divisions=[],busy=false){
- const result=state.result||{},plan=state.plan;
- const rows=plan?.report||result.table?.rows?.map(row=>({key:row.key,status:'stored',attributes:initializationAttributes(row).length}))||[];
- const rowData=key=>plan?.rows.find(r=>r.key===key)||plan?.existing.find(r=>r.key===key)?.row||result.table?.rows.find(r=>r.key===key);
- const statuses={create:'À créer',identical:'Déjà identique',different:'Valeurs différentes · conservées',error:'À corriger',stored:'Enregistré'};
- return head('ADMINISTRATION','Initialisation par numéro','15 attributs maximum · nom, type et valeur',btn('Actualiser','initialization-open','secondary',busy?'disabled':''))+notice('Cette migration copie les valeurs d’entrée dans '+FLOW_INITIALIZATION+'. Les anciennes lignes, les raccordements et les données renseignées pendant l’appel restent inchangés.','info')+`<section class="flow-data-card"><h2>Table dédiée Genesys</h2><p><code>${FLOW_INITIALIZATION}</code></p>${result.status==='error'?notice(esc(result.error),'warning'):''}${result.status==='missing'?`<label for="initialization-division">Division de la nouvelle table</label><select id="initialization-division"><option value="">Choisir une division…</option>${divisions.map(d=>`<option value="${esc(d.id)}" ${d.name==='G2S'?'selected':''}>${esc(d.name)}</option>`).join('')}</select>${btn('Créer la table dédiée','initialization-create','primary',busy?'disabled':'')}`:result.status==='ready'?`<p>${result.table.rows.length} numéro(s) enregistré(s).</p>${btn('Vérifier la migration','initialization-review','secondary',busy?'disabled':'')}`:'<p>Lecture de la table…</p>'}${rows.length?`<div class="initialization-table-wrap"><table class="initialization-table"><thead><tr><th>Numéro exact</th><th>Attributs</th><th>État</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${esc(row.key)}</td><td>${row.attributes?`<details><summary>${row.attributes}/15 attributs</summary><dl class="initialization-values">${initializationAttributes(rowData(row.key)).map(a=>`<div><dt><code>${esc(a.name)}</code> <span>${esc(a.type)}</span></dt><dd>${esc(a.value||'(vide)')}</dd></div>`).join('')}</dl></details>`:'0/15 attribut'} </td><td>${esc(statuses[row.status]||row.status)}${row.message?'<br>'+esc(row.message):''}</td></tr>`).join('')}</tbody></table></div>`:''}${plan?`<p>${plan.rows.length} ligne(s) à créer · ${plan.existing.length} déjà présente(s) · ${plan.errors.length} erreur(s).</p>${plan.errors.map(e=>notice(esc(e.key+' : '+e.message),'warning')).join('')}${plan.existing.some(e=>e.status==='different')?notice('Des valeurs dédiées diffèrent des anciennes valeurs. Elles ne seront pas écrasées. La migration globale est bloquée.','warning'):''}${btn('Copier les valeurs dans Genesys','initialization-migrate','primary',busy||!plan.ok||!plan.rows.length?'disabled':'')}`:''}${state.completed?notice(`${state.completed} ligne(s) créée(s) et relue(s). Aucune ancienne configuration n’a été modifiée.`,'success'):''}${state.error?`<div class="error-box" role="alert" tabindex="-1">${esc(state.error)}</div>`:''}</section><section class="flow-data-card"><h2>Bascule Architect à réaliser</h2><p>Lire cette table avec la clé exacte du numéro, puis affecter les attributs avant la première condition. Retirer les anciennes initialisations d’entrée uniquement après validation de ce lecteur. Les affectations de motif après les choix du menu restent nécessaires.</p><p>La création de la table ne modifie et ne publie aucun flow Architect.</p></section>`;
+import {
+  FLOW_INITIALIZATION,
+  FLOW_INITIALIZATION_LIMIT,
+  initializationAttributes,
+} from './flow-initialization.js';
+import { esc, head, btn, notice } from './ui-kit.js';
+
+function renderAttributes(row) {
+  const attributes = initializationAttributes(row);
+  if (!attributes.length) return '<span class="muted">Aucun attribut</span>';
+  return `<details class="initialization-details">
+    <summary>${attributes.length}/${FLOW_INITIALIZATION_LIMIT} attribut${attributes.length > 1 ? 's' : ''}</summary>
+    <dl class="initialization-values">
+      ${attributes
+        .map(
+          (attribute) => `<div>
+        <dt><code>${esc(attribute.name)}</code> <span>${esc(attribute.type)}</span></dt>
+        <dd>${esc(attribute.value === '' ? '(vide)' : attribute.value)}</dd>
+      </div>`,
+        )
+        .join('')}
+    </dl>
+  </details>`;
+}
+
+function renderRows(rows) {
+  if (!rows.length)
+    return '<p class="helper">Aucun numéro enregistré. Ajoutez ses valeurs depuis Données du parcours.</p>';
+  return `<div class="initialization-table-wrap">
+    <table class="initialization-table">
+      <caption class="sr-only">Valeurs initiales enregistrées par numéro</caption>
+      <thead><tr><th scope="col">Numéro exact</th><th scope="col">Division</th><th scope="col">Attributs</th></tr></thead>
+      <tbody>${rows
+        .map(
+          (row) => `<tr>
+        <td>${esc(row.key)}${row.DESCRIPTION ? `<small class="initialization-description">${esc(row.DESCRIPTION)}</small>` : ''}</td>
+        <td>${esc(row.DIVISION || 'Non renseignée')}</td>
+        <td>${renderAttributes(row)}</td>
+      </tr>`,
+        )
+        .join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderTable(result, divisions, busy) {
+  if (result.status === 'error') return notice(esc(result.error), 'warning');
+  if (result.status === 'missing')
+    return `<div class="field initialization-setup">
+    <label for="initialization-division">Division de la nouvelle table</label>
+    <select id="initialization-division" ${busy ? 'disabled' : ''}>
+      <option value="">Choisir une division…</option>
+      ${divisions.map((division) => `<option value="${esc(division.id)}" ${division.name === 'G2S' ? 'selected' : ''}>${esc(division.name)}</option>`).join('')}
+    </select>
+    ${btn('Créer la table dédiée', 'initialization-create', 'primary', busy ? 'disabled' : '')}
+  </div>`;
+  if (result.status !== 'ready') return '<p role="status">Lecture de la table…</p>';
+  const rows = result.table.rows;
+  return `<p>${rows.length} numéro(s) enregistré(s). Pour modifier les valeurs, ouvrez <strong>Données du parcours</strong> dans le parcours concerné.</p>${renderRows(rows)}`;
+}
+
+/** Read-only overview; row changes follow the journey's normal publication workflow. */
+export function initializationView(state = {}, divisions = [], busy = false) {
+  return (
+    head(
+      'ADMINISTRATION',
+      'Initialisation par numéro',
+      `${FLOW_INITIALIZATION_LIMIT} attributs maximum · nom, type et valeur`,
+      btn('Actualiser', 'initialization-open', 'secondary', busy ? 'disabled' : ''),
+    ) +
+    `
+    <section class="flow-data-card initialization-overview">
+      <h2>Valeurs enregistrées</h2>
+      <p class="helper"><code>${FLOW_INITIALIZATION}</code></p>
+      ${renderTable(state.result || {}, divisions, busy)}
+      ${state.error ? `<div class="error-box" role="alert" tabindex="-1">${esc(state.error)}</div>` : ''}
+    </section>
+    <section class="flow-data-card initialization-runtime">
+      <h2>Application pendant l’appel</h2>
+      <p>Architect doit lire la ligne du numéro appelé et affecter les attributs avant la première condition. L’enregistrement de ces valeurs ne publie pas le flow Architect.</p>
+    </section>`
+  );
 }
