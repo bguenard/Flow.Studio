@@ -100,6 +100,7 @@ export function journeySteps(flow) {
     toId: route.toId,
     title: route.toTitle,
     label: route.label,
+    branch: route.edge.branch,
     relationship: route.relationship,
     terminal: route.terminal,
     dynamic: route.dynamic,

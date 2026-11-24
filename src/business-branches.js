@@ -1,3 +1,4 @@
+import { branchRank as routeBranchRank } from './business.js';
 import { routeTargetKey, routeTypeLabels } from './v5-fields.js';
 import { fieldLabel } from './draft-fields.js';
 import { esc } from './ui-kit.js';
@@ -29,6 +30,7 @@ const branchOrder = [
 ];
 const branchRank = (id) => {
   const prefix = id.replace(/_?TARGET_TYPE(?:_\d+)?$/, '');
+  if (/^OPTION(?:\d|STAR|DIEZ)$/.test(prefix)) return routeBranchRank(prefix);
   const i = branchOrder.indexOf(prefix);
   return i < 0 ? 50 : i;
 };
@@ -106,7 +108,7 @@ function destination(branch) {
       ? target.display
       : '',
   ].filter(present);
-  return `<p class="business-branch-destination"><span>Suite de l’appel</span>${esc(parts.join(' · ') || 'Non renseignée')}<button type="button" class="btn quiet small" data-action="set-audience" data-audience="admin">Modifier en Administration</button></p>`;
+  return `<p class="business-branch-destination"><span>Suite de l’appel</span>${esc(parts.join(' · ') || 'Non configuré')}<button type="button" class="btn quiet small" data-action="set-audience" data-audience="admin">Modifier en Administration</button></p>`;
 }
 export function businessBranchView(
   model,
@@ -117,9 +119,9 @@ export function businessBranchView(
 ) {
   if (!model.all.length) return '';
   const branch = model.branches.find((b) => b.id === selected) || model.branches[0];
-  return `<section class="business-setting-group business-branch-editor"><h3>Choix et suites du parcours</h3><p class="helper">Sélectionnez un choix pour modifier uniquement ses réglages.</p>${
+  return `<section class="business-setting-group business-branch-editor"><h3>Choix et suites du parcours</h3><p class="helper">Seuls les réglages du choix sélectionné sont affichés.</p>${
     branch
-      ? `<div class="field"><label for="business-branch">${model.all.some((b) => /^OPTION/.test(b.id)) ? 'Choix à modifier' : 'Situation à modifier'}</label><select id="business-branch">${model.branches.map((b) => `<option value="${esc(b.id)}" ${b.id === branch.id ? 'selected' : ''}>${esc(b.label)}${b.configured ? '' : ' · à configurer'}</option>`).join('')}</select></div><div class="business-branch-panel"><h4>${esc(branch.label)}</h4>${routing ? '' : destination(branch)}${branchParametersView(branch, pending)}<div class="field-grid">${branch.fields
+      ? `<div class="field"><label for="business-branch">${model.all.some((b) => /^OPTION/.test(b.id)) ? 'Choix à modifier' : 'Situation à modifier'}</label><select id="business-branch">${model.branches.map((b) => `<option value="${esc(b.id)}" ${b.id === branch.id ? 'selected' : ''}>${esc(b.label)}${b.route ? '' : ' · non configuré'}</option>`).join('')}</select></div><div class="business-branch-panel"><h4>${esc(branch.label)}</h4>${!branch.route ? '<p class="helper">Non configuré : aucune action n’est définie pour ce choix.</p>' : ''}${routing ? '' : destination(branch)}${branchParametersView(branch, pending)}<div class="field-grid">${branch.fields
           .filter((f) =>
             routing
               ? !(

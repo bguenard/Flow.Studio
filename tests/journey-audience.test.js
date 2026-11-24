@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { businessFields } from '../src/business.js';
 import {
   businessInspectorModel,
+  adminInspectorFields,
   adminSourceDetails,
   audienceNodeTitle,
   audienceNodeSubtitle,
@@ -275,4 +276,35 @@ test('configured fields hide only empty values and retain name, zero, false and 
     ['DESCRIPTION', 'ZERO', 'FALSE', 'TEXT', 'CLEAR', 'NEW'],
   );
   assert.equal(configuredStepFields(fields, {}, false), fields);
+});
+
+test('division is excluded from both step editors while source rows and other resource fields remain intact', () => {
+  for (const type of ['menu', 'schedulegroup', 'service', 'inboundcall', 'decision']) {
+    const step = node(
+      type,
+      {
+        DESCRIPTION: 'Étape',
+        DIVISION: 'Gan Assurances',
+        MENU_AUDIO: 'tts:Bonjour',
+        QUEUE: 'File Gan',
+      },
+      {
+        schema: {
+          properties: {
+            DIVISION: { type: 'string' },
+            DESCRIPTION: { type: 'string' },
+            MENU_AUDIO: { type: 'string' },
+            QUEUE: { type: 'string' },
+          },
+        },
+      },
+    );
+    const before = structuredClone(step);
+    for (const fields of [adminInspectorFields(step), businessInspectorModel(step).fields]) {
+      assert.ok(!fields.some((field) => field.key === 'DIVISION'));
+      assert.ok(fields.some((field) => field.key === 'DESCRIPTION'));
+    }
+    assert.ok(adminInspectorFields(step).some((field) => field.key === 'QUEUE'));
+    assert.deepEqual(step, before);
+  }
 });

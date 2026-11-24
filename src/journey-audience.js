@@ -349,3 +349,20 @@ export function configuredStepFields(fields, pending = {}, onlyConfigured = true
       )
     : fields;
 }
+
+/** Division belongs to the journey, not to editable step settings. */
+export function adminInspectorFields(node, section) {
+  return businessFields(node)
+    .filter(
+      (f) =>
+        f.key.toUpperCase() !== 'DIVISION' &&
+        (!section || f.section === section) &&
+        (f.schema ||
+          f.resource ||
+          f.key.toUpperCase() === 'DESCRIPTION' ||
+          f.key === 'WELCOME_AUDIO' ||
+          f.key === 'MENU_AUDIO' ||
+          (f.value !== '' && f.value !== null && f.value !== undefined)),
+    )
+    .sort(compareBusinessFields);
+}

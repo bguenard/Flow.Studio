@@ -229,29 +229,6 @@
   font-size: 12px;
   border-radius: 6px;
 }
-.is-catalogue .flow-card-actions .btn.secondary {
-  border: 0;
-  padding-left: 0;
-  background: transparent;
-  color: #454e57;
-}
-.is-catalogue .flow-card-actions .btn.secondary:hover {
-  color: #ac5100;
-  background: transparent;
-}
-.is-catalogue .flow-card-actions .btn.secondary svg {
-  width: 14px;
-  height: 14px;
-  color: #d07528;
-}
-.is-catalogue .flow-card-actions .btn.quiet {
-  min-width: 32px;
-  color: #5f6b75;
-}
-.is-catalogue .flow-card-actions .btn.quiet:hover {
-  color: #b15606;
-  background: #fff0e3;
-}
 .is-catalogue .flow-list > .empty-state {
   grid-column: 1 / -1;
   min-height: 180px;

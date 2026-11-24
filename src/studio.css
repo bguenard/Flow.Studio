@@ -223,9 +223,6 @@
   font-size: 13px;
   border-radius: 7px;
 }
-.is-studio .studio-header .btn.primary {
-  box-shadow: 0 2px 3px rgb(126 64 0 / 9%);
-}
 .is-studio .studio-context {
   display: flex;
   align-items: center;

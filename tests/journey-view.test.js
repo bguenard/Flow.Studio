@@ -120,3 +120,65 @@ test('business relation titles preserve the same routing targets while context l
     stepRelations(flow, 'context', 'usedBy', { audience: 'admin' }).includes('data-node="2"'),
   );
 });
+
+test('outgoing menu choices use keypad order independently of source or destination order', () => {
+  const branches = [
+    'DEFAULT',
+    'OPTION0',
+    'OPTION3',
+    'OPTION4',
+    'OPTION1',
+    'OPTION2',
+    'OPTION5',
+    'OPTION6',
+    'OPTIONDIEZ',
+    'OPTIONSTAR',
+    'OPTION9',
+    'OPTION7',
+    'OPTION8',
+  ];
+  const flow = {
+    id: 'menu',
+    nodes: [
+      { id: 'menu', key: 'MENU', type: 'menu', row: {} },
+      { id: 'team', key: 'TEAM', type: 'service', row: { DESCRIPTION: 'Conseil' } },
+    ],
+    edges: branches.map((branch) => ({
+      from: 'menu',
+      branch,
+      relationship: 'route',
+      ...(branch === 'OPTION3'
+        ? { to: 'team', type: 'service', resolved: true }
+        : branch === 'OPTION2'
+          ? { type: 'service', target: 'missing', resolved: false }
+          : { type: 'disconnect', terminal: true }),
+    })),
+  };
+  const original = structuredClone(flow);
+  const labels = [
+    'Choix 0',
+    'Choix 1',
+    'Choix 2',
+    'Choix 3',
+    'Choix 4',
+    'Choix 5',
+    'Choix 6',
+    'Choix 7',
+    'Choix 8',
+    'Choix 9',
+    'Choix étoile (*)',
+    'Choix dièse (#)',
+    'Sinon',
+  ];
+  for (const audience of ['business', 'admin']) {
+    const html = stepRelations(flow, 'menu', 'outgoing', { audience });
+    assert.deepEqual(
+      [...html.matchAll(/<span>([^<]+)<\/span>/g)].map((match) => match[1]),
+      labels,
+    );
+    assert.match(html, /data-node="1"/);
+    assert.match(html, /Destination à vérifier/);
+    assert.equal((html.match(/Fin d’appel/g) || []).length, 11);
+  }
+  assert.deepEqual(flow, original);
+});

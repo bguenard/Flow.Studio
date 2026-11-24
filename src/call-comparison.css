@@ -56,9 +56,9 @@
   flex-wrap: wrap;
 }
 .comparison-scenarios .btn {
-  background: #ffffff0b;
-  border: 1px solid #ffffff28;
-  color: #dae1e7;
+  background: #fff;
+  border: 1px solid var(--button-border);
+  color: var(--button-ink);
   border-radius: 12px;
   padding: 14px 22px;
 }
@@ -76,14 +76,6 @@
   border-top: 1px solid #ffffff1c;
   padding-top: 20px;
   margin-top: 20px;
-}
-.comparison-transport .secondary {
-  background: #ffffff12;
-  color: #fff;
-  border-color: #ffffff35;
-}
-.comparison-transport .quiet {
-  color: #cbd3da;
 }
 .comparison-transport [role='status'] {
   font-size: 12px;

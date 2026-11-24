@@ -3,6 +3,11 @@
   --orange: #ff7900;
   --orange-hover: #e66d00;
   --orange-soft: #fff1e4;
+  --button-border: #d9dfe5;
+  --button-ink: #344451;
+  --button-accent: #b85a00;
+  --button-hover: #fff8f1;
+  --button-hover-border: #d89759;
   --ink: #171717;
   --muted: #686868;
   --line: #e5e5e5;
@@ -410,6 +415,7 @@ hr {
   flex-wrap: wrap;
   flex: 0 0 auto;
 }
+/* Shared action style; primary/secondary remain semantic hooks for callers. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -417,13 +423,13 @@ hr {
   gap: 8px;
   min-height: 42px;
   padding: 10px 16px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--button-border);
   border-radius: 6px;
-  background: white;
-  color: #222;
+  background: #fff;
+  color: var(--button-ink);
   font-size: 14px;
   line-height: 1.35;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
   text-align: center;
   box-shadow: none;
@@ -432,34 +438,23 @@ hr {
     border-color 0.15s,
     box-shadow 0.15s;
 }
+.btn svg {
+  width: 16px;
+  height: 16px;
+  color: var(--button-accent);
+}
 .btn:hover:not(:disabled) {
-  background: #f2f2f2;
-  border-color: #aaa;
+  background: var(--button-hover);
+  border-color: var(--button-hover-border);
 }
-.btn.primary {
-  border-color: var(--orange);
-  background: var(--orange);
-  color: #111;
+.btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--button-accent);
+  outline-offset: 3px;
 }
-.btn.primary:hover:not(:disabled) {
-  border-color: var(--orange-hover);
-  background: var(--orange-hover);
-  box-shadow: 0 2px 7px rgb(255 121 0 / 17%);
-}
-.btn.secondary {
-  background: white;
-  border-color: #bcbcbc;
-  color: #222;
-}
-.btn.quiet {
-  border-color: transparent;
-  background: transparent;
-  color: #555;
-}
-.btn.quiet:hover:not(:disabled) {
-  border-color: transparent;
-  background: #efefef;
-  color: #111;
+.btn:active:not(:disabled) {
+  background: #ffefdf;
+  border-color: var(--button-accent);
 }
 .btn.small {
   min-height: 34px;
@@ -477,14 +472,14 @@ hr {
   width: 36px;
   height: 36px;
   padding: 7px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #555;
+  border: 1px solid var(--button-border);
+  background: #fff;
+  color: var(--button-accent);
   border-radius: 6px;
 }
-.icon-btn:hover {
-  background: #eee;
-  color: #111;
+.icon-btn:hover:not(:disabled) {
+  background: var(--button-hover);
+  border-color: var(--button-hover-border);
 }
 .tag {
   display: inline-flex;

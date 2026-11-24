@@ -106,9 +106,9 @@ import {
 } from './business-workspace.js';
 import {
   businessInspectorModel,
+  adminInspectorFields,
   adminSourceDetails,
   audienceNodeTitle,
-  compareBusinessFields,
   configuredStepFields,
 } from './journey-audience.js';
 import { prepareStepDraft } from './step-draft.js';
@@ -130,7 +130,6 @@ import {
   flowTitle,
   humanText,
   nodeTitle,
-  businessFields,
   compareFlows,
   describeValue,
   flowRoutes,
@@ -1110,24 +1109,10 @@ function catalogue(templates = false) {
         : 'Parcours voix des entités : consultation, adaptation, simulation et publication.',
       btn(icon('diff') + ' Comparer des parcours', 'nav', 'secondary', 'data-view="compare"') +
         btn('Création libre', 'designer-create', 'secondary') +
-        btn('+ Créer un parcours', 'wizard-open', 'primary'),
+        btn(icon('plus') + ' Créer un parcours', 'wizard-open', 'secondary'),
     ) +
     `<div class="section-heading"><h2>${templates ? 'Parcours de référence disponibles' : 'Parcours des entités'} <span class="journey-count" id="catalogue-count">${count}</span></h2></div>${catalogueFilterView(options, ui.catalogueModel, ui.query, count)}<div class="flow-list" id="flow-list">${flowCards()}</div>`
   );
-}
-function usefulFields(node, section) {
-  return businessFields(node)
-    .filter(
-      (f) =>
-        (!section || f.section === section) &&
-        (f.schema ||
-          f.resource ||
-          f.key.toUpperCase() === 'DESCRIPTION' ||
-          f.key === 'WELCOME_AUDIO' ||
-          f.key === 'MENU_AUDIO' ||
-          (f.value !== '' && f.value !== null && f.value !== undefined)),
-    )
-    .sort(compareBusinessFields);
 }
 const resourceStates = new Map();
 let resourceToken = null;
@@ -1243,7 +1228,7 @@ function fieldInput(field, index) {
 
 function visibleStepFields(node) {
   return ui.audience === 'admin'
-    ? usefulFields(node)
+    ? adminInspectorFields(node)
     : businessInspectorModel(node).groups.flatMap((group) => group.fields);
 }
 function nodeEditor(node, f) {
@@ -1251,7 +1236,7 @@ function nodeEditor(node, f) {
   const admin = ui.audience === 'admin',
     model = businessInspectorModel(node);
   const pending = ui.pendingFields.get(node.id) || {};
-  const branchFields = admin ? usefulFields(node) : model.fields;
+  const branchFields = admin ? adminInspectorFields(node) : model.fields;
   const branchModel = businessBranches(node, branchFields, pending, ui.onlyConfigured);
   const allBusinessFields = model.fields;
   model.groups = model.groups
@@ -1262,7 +1247,7 @@ function nodeEditor(node, f) {
     .filter((group) => group.fields.length);
   model.fields = model.groups.flatMap((group) => group.fields);
   const fields = admin
-      ? configuredStepFields(usefulFields(node), pending, ui.onlyConfigured)
+      ? configuredStepFields(adminInspectorFields(node), pending, ui.onlyConfigured)
       : model.fields,
     index = f.nodes.findIndex((n) => n.id === node.id),
     shared = affectedFlows(node.id),
@@ -1337,7 +1322,7 @@ function nodeEditor(node, f) {
  ${admin ? stepRelations(f, node.id, 'incoming', { audience: ui.audience }) + stepRelations(f, node.id, 'usedBy', { audience: ui.audience }) : ''}
  ${admin ? `<label class="configured-fields-filter"><input type="checkbox" id="configured-fields-only" ${ui.onlyConfigured ? 'checked' : ''}> Réglages renseignés uniquement</label><p class="helper">Désactivez pour afficher et renseigner les champs vides.</p>` : ''}
  <form class="node-form" data-node="${index}">${admin ? '<h3 class="step-settings-heading">Réglages avancés</h3>' : ''}${fields.length ? groupHtml : '<p class="helper">Les suites de cette étape sont présentées ci-dessous.</p>'}</form>
- ${admin ? stepRelations(f, node.id, 'outgoing', { audience: ui.audience }) + stepRelations(f, node.id, 'attachments', { audience: ui.audience }) + stepRelations(f, node.id, 'contexts', { audience: ui.audience }) : ''}
+ ${admin ? (branchModel.all.length ? '' : stepRelations(f, node.id, 'outgoing', { audience: ui.audience })) + stepRelations(f, node.id, 'attachments', { audience: ui.audience }) + stepRelations(f, node.id, 'contexts', { audience: ui.audience }) : ''}
  ${!admin ? `<div class="business-admin-link">${btn(ui.onlyConfigured ? 'Afficher les réglages vides' : 'Masquer les réglages vides', 'toggle-configured', 'quiet small', `aria-pressed="${!ui.onlyConfigured}"`)}${btn('Voir les détails WOLF', 'set-audience', 'quiet small', 'data-audience="admin" data-panel="source"')}</div>` : ''}`
  }
  </section>`;
@@ -2111,7 +2096,6 @@ function render() {
     (ui.view !== 'flow' || ui.loading || ui.clone || ui.liveActivity.flow?.id !== current()?.id)
   )
     liveActivityController.stop();
-            ui.inventory?.flows || [],
   const liveViewport = $('#live-map-viewport'),
     liveScroll = { left: liveViewport?.scrollLeft || 0, top: liveViewport?.scrollTop || 0 };
   if (!ui.inventory && !ui.loading) ui.view = 'settings';
@@ -2127,6 +2111,7 @@ function render() {
             ui.initialization,
             loadedCatalogues().divisions || [],
             ui.governanceBusy,
+            ui.inventory?.flows || [],
           ),
         participantadmin: () =>
           participantAdminView(ui.participantAdmin || {}, {
@@ -3023,10 +3008,6 @@ async function action(name, el) {
       if (hasLocalWork()) throw Error('Terminez vos brouillons avant de créer la table dédiée.');
       const divisionId = $('#initialization-division')?.value,
         client = initializationClient;
-    case 'initialization-edit':
-      openFlow(el.dataset.index);
-      await action('flow-data-open', el);
-      break;
       ui.initialization.error = '';
       ui.governanceBusy = true;
       render();
@@ -3042,6 +3023,10 @@ async function action(name, el) {
       }
       break;
     }
+    case 'initialization-edit':
+      openFlow(el.dataset.index);
+      await action('flow-data-open', el);
+      break;
     case 'flow-data-open': {
       if (ui.pendingFields.size)
         throw Error('Enregistrez les réglages en cours avant d’ouvrir les données du parcours.');

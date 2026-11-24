@@ -166,3 +166,44 @@ test('calendar inspector scopes destination, context and controls to the selecte
   assert.match(businessBranchView(m, 'OPEN_TARGET_TYPE', render), /agence_ouverte/);
   assert.deepEqual(n.row, original);
 });
+
+test('menu selector orders digits, star, hash and fallback, but renders only the selected choice', () => {
+  const node = fixture('menu', {
+    DEFAULT_TARGET_TYPE: 'disconnect',
+    DEFAULT_TARGET: '',
+    OPTIONDIEZ_TARGET_TYPE: 'disconnect',
+    OPTIONDIEZ_TARGET: '',
+    OPTION3_TARGET_TYPE: 'service',
+    OPTION3_TARGET: 'CONSEIL',
+    OPTIONSTAR_TARGET_TYPE: 'disconnect',
+    OPTIONSTAR_TARGET: '',
+    OPTION1_TARGET_TYPE: 'service',
+    OPTION1_TARGET: 'SINISTRES',
+    OPTION0_TARGET_TYPE: '',
+    OPTION0_TARGET: '',
+  });
+  const before = structuredClone(node.row),
+    branches = model(node, {}, false);
+  assert.deepEqual(
+    branches.all.map((b) => b.id),
+    [
+      'OPTION0_TARGET_TYPE',
+      'OPTION1_TARGET_TYPE',
+      'OPTION3_TARGET_TYPE',
+      'OPTIONSTAR_TARGET_TYPE',
+      'OPTIONDIEZ_TARGET_TYPE',
+      'DEFAULT_TARGET_TYPE',
+    ],
+  );
+  const render = (field) => `<input data-field="${field.key}" value="${field.value}">`;
+  const selected = businessBranchView(branches, 'OPTION3_TARGET_TYPE', render);
+  assert.match(selected, /value="CONSEIL"/);
+  assert.doesNotMatch(selected, /value="SINISTRES"|data-field="OPTIONDIEZ_TARGET/);
+  const blank = businessBranchView(branches, 'OPTION0_TARGET_TYPE', render);
+  assert.match(blank, /Non configuré : aucune action/);
+  assert.doesNotMatch(blank, /Fin d’appel/);
+  const terminal = businessBranchView(branches, 'OPTIONDIEZ_TARGET_TYPE', render);
+  assert.match(terminal, /Fin d’appel/);
+  assert.doesNotMatch(terminal, /Non configuré : aucune action/);
+  assert.deepEqual(node.row, before);
+});

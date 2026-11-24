@@ -1,3 +1,4 @@
+import { branchRank } from './business.js';
 import { journeySteps } from './journey-navigation.js';
 import { esc, icon, tag } from './ui-kit.js';
 import { audienceNodeTitle, audienceNodeSubtitle, isContextNode } from './journey-audience.js';
@@ -65,7 +66,9 @@ export function stepRelations(flow, nodeId, side, { audience = 'business' } = {}
           ? step.contexts
           : side === 'attachments'
             ? step.outgoing.filter(attached)
-            : step.outgoing.filter((link) => !attached(link));
+            : step.outgoing
+                .filter((link) => !attached(link))
+                .sort((a, b) => branchRank(a.branch) - branchRank(b.branch));
   if (!links.length) return '';
   const title =
     side === 'incoming'
