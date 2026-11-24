@@ -26,7 +26,7 @@ export function prepareCoreModelCopy({snapshot,registry,form,transientIds=[],dec
  const result=cloneFlow(snapshot,source,{name,phone:form.phone.trim(),division:form.division});
  const next=form.kind==='version'
   ?declareReference(registry,{flowId:result.flowId,coreModelId:r.model.id,versionLabel:form.versionLabel,declaredAt})
-  :attachDeclination(registry,{flowId:result.flowId,baseFlowId:source.id,origin:'created',declaredAt,nodeMappings:result.summary.mappings.map(m=>({referenceNodeId:m.sourceNodeId,localNodeId:m.nodeId}))});
+  :attachDeclination(registry,{flowId:result.flowId,baseFlowId:source.id,origin:'created',declaredAt,nodeMappings:result.summary.mappings.filter(m=>!m.initialization).map(m=>({referenceNodeId:m.sourceNodeId,localNodeId:m.nodeId}))});
  // The copy has a business name; the draft state is tracked separately.
  const copy=structuredClone(result.snapshot);
  const entry=copy.tables.flatMap(t=>t.rows.map(row=>({id:`${t.id}:${row.key}`,row}))).find(x=>x.id===result.flowId);

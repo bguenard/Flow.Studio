@@ -34,7 +34,7 @@ test('a recovered attachment never replaces a role already stored in Genesys', (
 
 test('a browser registry that cannot be migrated no longer blocks the shared registry', () => {
   const html = governanceSettingsView({ status: 'missing', migration: { coreModels: [{}], declinations: [] } });
-  assert.match(html, /data-action="governance-initialize"[^>]*data-skip-migration="true"/);
+  assert.match(html, /data-action="governance-initialize"/);assert.doesNotMatch(html, /data-skip-migration|à migrer/);
   assert.doesNotMatch(governanceSettingsView({ status: 'missing', migration: emptyRegistry() }), /data-skip-migration/);
 });
 

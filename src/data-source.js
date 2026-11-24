@@ -70,7 +70,7 @@ export function normalizeSnapshot(input) {
       keys.add(key);
       return row;
     });
-    return { id, name, ...(table.schema ? { schema: clone(table.schema) } : {}), rows };
+    return { id, name, ...(typeof table.description==='string'?{description:table.description}:{}), ...(table.division?{division:clone(table.division)}:{}), ...(table.schema ? { schema: clone(table.schema) } : {}), rows };
   });
   return deepFreeze({ schemaVersion: 1, source: object(input.source) ? clone(input.source) : { kind: 'import' }, tables });
 }

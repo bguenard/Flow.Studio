@@ -1,189 +1,74 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createGenesysGovernanceClient, governanceTableDefinition,
-  GOVERNANCE_TABLE_NAME, GOVERNANCE_TABLE_DESCRIPTION,
-} from '../src/genesys-governance.js';
-import { emptyRegistry, normalizeRegistry } from '../src/governance.js';
+import {governanceTableDefinition,GOVERNANCE_TABLE_NAME} from '../src/genesys-governance.js';
+import {emptyRegistry} from '../src/governance.js';
+import {harness,registry} from './governance-fixture.js';
 
-function registry(name = 'Relation client', count = 1) {
-  return normalizeRegistry({ schemaVersion: 1,
-    coreModels: [{ id: 'cm-group', name, versions: [{ flowId: 'inbound:group', label: 'V1' }] }],
-    declinations: Array.from({ length: count }, (_, index) => ({
-      flowId: `inbound:entity-${index}`, coreModelId: 'cm-group', baseFlowId: 'inbound:group',
-      scope: 'active', scopeNote: 'Périmètre défini', origin: 'created',
-      nodeMappings: [{ referenceNodeId: 'table:reference', localNodeId: `table:entity-${index}-😀` }],
-    })),
-  });
-}
-
-function harness({ limit = 262144, fallbackOrganization = false, paginated = false } = {}) {
-  let table = null, hook = null, currentOrg = 'org-1';
-  const rows = new Map(), calls = [];
-  const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => structuredClone(body) });
-  const fetchImpl = async (url, options = {}) => {
-    const address = new URL(url), method = options.method || 'GET', path = address.pathname;
-    const body = options.body ? JSON.parse(options.body) : null;
-    const call = { url, path, method, body, options }; calls.push(call);
-    assert.equal(address.origin, 'https://api.mypurecloud.ie');
-    assert.equal(options.headers.Authorization, 'Bearer unit-test-token');
-    assert.equal(options.redirect, 'error');
-    assert.equal(options.credentials, 'omit');
-    const injected = await hook?.(call, response); if (injected) return injected;
-    if (path === '/api/v2/users/me') return response({ id: 'user-1', ...(fallbackOrganization ? {} : { organization: { id: currentOrg } }) });
-    if (path === '/api/v2/organizations/me') return response({ id: currentOrg });
-    if (path === '/api/v2/authorization/divisions/division-1') return response({ id: 'division-1' });
-    if (path === '/api/v2/flows/datatables') {
-      if (method === 'GET') {
-        const pageNumber = Number(address.searchParams.get('pageNumber'));
-        const unrelated = { id: 'runtime-1', name: 'W_INBOUND_CALL_v5' };
-        if (paginated && pageNumber === 1) return response({ entities: [unrelated], pageNumber: 1, pageCount: 2, nextUri: 'https://untrusted.invalid/steal-token' });
-        return response({ entities: table ? [table] : paginated ? [] : [unrelated], pageNumber, pageCount: paginated ? 2 : 1 });
-      }
-      assert.equal(method, 'POST'); assert.equal(body.name, GOVERNANCE_TABLE_NAME);
-      // The real API rejects a schema which omits additionalProperties:false.
-      assert.equal(body.schema.additionalProperties, false);
-      assert.equal(body.schema.$schema, 'http://json-schema.org/draft-04/schema#');
-      assert.equal(table, null); table = { ...structuredClone(body), id: 'governance-1' };
-      table.schema.properties.PAYLOAD.maxLength = limit;
-      return response(table, 201);
-    }
-    if (path === '/api/v2/flows/datatables/governance-1') {
-      assert.equal(method, 'GET'); assert.equal(address.searchParams.get('expand'), 'schema');
-      return response(table, table ? 200 : 404);
-    }
-    const match = path.match(/^\/api\/v2\/flows\/datatables\/governance-1\/rows(?:\/(.+))?$/);
-    assert.ok(match, `Unexpected ${method} ${path}`);
-    const key = match[1] ? decodeURIComponent(match[1]) : null;
-    if (method === 'GET') {
-      assert.equal(address.searchParams.get('showbrief'), 'false');
-      return rows.has(key) ? response(rows.get(key)) : response({}, 404);
-    }
-    assert.ok(['POST', 'PUT'].includes(method));
-    if (method === 'POST') { assert.equal(key, null); if (rows.has(body.key)) return response({}, 409); }
-    if (method === 'PUT') { assert.equal(key, 'registry'); assert.ok(rows.has(key)); }
-    rows.set(body.key, structuredClone(body)); return response(body, method === 'POST' ? 201 : 200);
-  };
-  const client = () => createGenesysGovernanceClient('unit-test-token', { organizationId: 'org-1', fetchImpl, now: () => Date.UTC(2026, 10, 23) });
-  return { client, calls, rows, get table() { return table; }, setHook: value => { hook = value; },
-    setOrganization: value => { currentOrg = value; },
-    setTable: value => { table = value; }, mutations: () => calls.filter(call => call.method !== 'GET'),
-  };
-}
-
-test('missing registry is distinct from an initialized empty registry and load has no writes', async () => {
-  const h = harness({ fallbackOrganization: true }), client = h.client();
-  const missing = await client.load();
-  assert.deepEqual(missing, { tableExists: false, exists: false, tableId: null, organizationId: 'org-1', registry: null, revision: null });
-  assert.equal(h.mutations().length, 0);
-  const initialized = await client.initialize(emptyRegistry(), 'division-1');
-  assert.equal(initialized.exists, true); assert.deepEqual(initialized.registry, emptyRegistry());
-  assert.equal(h.mutations().length, 2);
-  assert.ok(h.calls.some(call => call.path === '/api/v2/organizations/me'));
+test('missing table differs from initialized empty table; reads never write',async()=>{
+ const h=harness(),c=h.client();assert.equal((await c.load()).exists,false);assert.equal(h.mutations().length,0);
+ const result=await c.initialize(emptyRegistry(),'g2s');assert.equal(result.exists,true);assert.deepEqual(result.registry,emptyRegistry());assert.equal(h.mutations().length,1);assert.equal(h.rows.size,0);
+ assert.deepEqual((await h.client().load()).registry,emptyRegistry());
+});
+test('schema is explicit, includes division ID and name, and has no PAYLOAD',()=>{
+ const d=governanceTableDefinition('g2s');assert.equal(d.name,GOVERNANCE_TABLE_NAME);assert.ok(d.schema.properties.DIVISION_ID);assert.ok(d.schema.properties.DIVISION);assert.ok(d.schema.properties.MODEL_ID);assert.ok(d.schema.properties.BASE_FLOW_ID);assert.equal(d.schema.properties.PAYLOAD,undefined);assert.equal(d.schema.additionalProperties,false);assert.throws(()=>governanceTableDefinition('../bad'),{code:'INVALID_DIVISION'});
+});
+test('round trip preserves versions, mappings, Unicode and per-journey divisions',async()=>{
+ const h=harness({paginated:true}),r=registry('Modèle 😀',4);r.coreModels[0].versions.push({flowId:'inbound:v2',label:'V2',declaredAt:'2026-11-24'});await h.seed(r);
+ assert.deepEqual((await h.client().load()).registry,r);assert.equal(h.rows.size,11);
+ for(const row of h.rows.values())assert.equal(row.DIVISION_ID,['MODEL','VERSION'].includes(row.RECORD_TYPE)?'g2s':'gan');
+ assert.ok(h.calls.every(c=>c.u.origin==='https://api.mypurecloud.ie'));assert.equal([...h.rows.values()].some(r=>r.key==='write_lock'||r.key.startsWith('journal:')),false);
+});
+test('rename writes only the model business row; versions and children stay byte-identical',async()=>{
+ const h=harness(),c=await h.seed(),before=structuredClone(h.rows),start=h.calls.length;
+ await c.save(registry('Nouveau nom'));const writes=h.calls.slice(start).filter(c=>c.method==='PUT'&&c.body?.STATUS==='active');assert.equal(writes.length,1);assert.equal(writes[0].body.RECORD_TYPE,'MODEL');
+ for(const [key,row]of before)if(row.RECORD_TYPE!=='MODEL')assert.deepEqual(h.rows.get(key),row);
+ assert.deepEqual((await h.client().load()).registry,registry('Nouveau nom'));
+});
+test('stale clients and organization mismatches cannot mutate rows',async()=>{
+ const h=harness(),first=await h.seed(),second=h.client();await second.load();await first.save(registry('A'));let n=h.mutations().length;
+ await assert.rejects(second.save(registry('B')),{code:'CONFLICT'});assert.equal(h.mutations().length,n);
+ h.setOrganization('elsewhere');await assert.rejects(h.client().load(),{code:'ORGANIZATION_MISMATCH'});assert.equal(h.mutations().length,n);
+});
+test('schema drift, table identity drift and unrelated homonyms fail closed',async()=>{
+ const h=harness(),c=await h.seed();h.table.schema.properties.MODEL_NAME.maxLength=200;let n=h.mutations().length;await assert.rejects(c.save(registry('A')),{code:'TABLE_CHANGED'});assert.equal(h.mutations().length,n);
+ h.setHook((call,res)=>call.path==='/api/v2/flows/datatables/records'?res({...h.table,id:'wolf'}):undefined);await assert.rejects(h.client().load(),{code:'TABLE_IDENTITY'});
+ h.setHook(null);h.table.description='other app';await assert.rejects(h.client().load(),{code:'TABLE_IDENTITY'});assert.equal(h.mutations().length,n);
+});
+test('invalid graphs and ambiguous or absent division names never write',async()=>{
+ const h=harness(),c=await h.seed(),r=registry();r.declinations.push({flowId:'orphan',coreModelId:'missing'});let n=h.mutations().length;
+ await assert.rejects(c.save(r),{code:'INVALID_REGISTRY'});assert.equal(h.mutations().length,n);
+ h.setFlowDivisions(new Map([['inbound:group','unknown']]));await assert.rejects(c.save(registry('A')),{code:'INVALID_DIVISION'});assert.equal(h.mutations().length,n);
+ h.divisions.push({id:'duplicate',name:'G2S'});h.setFlowDivisions(new Map([['inbound:group','G2S']]));await c.load();await assert.rejects(c.save(registry('B')),{code:'INVALID_DIVISION'});assert.equal(h.mutations().length,n);
+});
+test('catalogue division rename refreshes labels without changing IDs or child ownership',async()=>{
+ const h=harness(),c=await h.seed();h.divisions[0].name='Groupe';h.setFlowDivisions(new Map([['inbound:group','g2s'],['inbound:entity-0','gan']]));await c.save(registry('Nouveau'));
+ assert.equal(h.rows.get('model:group').DIVISION,'Groupe');assert.equal(h.rows.get('declination:inbound:entity-0').DIVISION_ID,'gan');
+});
+test('deleting metadata uses tombstones and never deletes a journey',async()=>{
+ const h=harness(),c=await h.seed(),runtime=structuredClone(h.runtime);await c.save(emptyRegistry());assert.deepEqual((await h.client().load()).registry,emptyRegistry());assert.equal(h.rows.size,4);assert.ok([...h.rows.values()].every(r=>r.STATUS==='deleted'));assert.deepEqual(h.runtime,runtime);
+});
+test('orphan and tampered business rows are rejected rather than silently dropped',async()=>{
+ const h=harness();await h.seed();h.rows.get('declination:inbound:entity-0').BASE_FLOW_ID='missing';let n=h.mutations().length;await assert.rejects(h.client().load(),{code:'INVALID_REGISTRY'});assert.equal(h.mutations().length,n);
+});
+test('API 403 is not treated as an empty table and token is not disclosed in 400 errors',async()=>{
+ const h=harness();h.setHook((c,res)=>res({},403));await assert.rejects(h.client().load(),{status:403});assert.equal(h.mutations().length,0);
+ h.setHook((c,res)=>res({message:'test-token'},400));await assert.rejects(h.client().load(),e=>!e.message.includes('test-token'));
 });
 
-test('table definition declares only dedicated string columns and a validated division', () => {
-  const definition = governanceTableDefinition('division-1');
-  assert.equal(definition.name, GOVERNANCE_TABLE_NAME);
-  assert.equal(definition.description, GOVERNANCE_TABLE_DESCRIPTION);
-  assert.equal(Object.keys(definition.schema.properties).length, 8);
-  assert.equal(definition.schema.$schema, 'http://json-schema.org/draft-04/schema#');
-  assert.equal(definition.schema.additionalProperties, false);
-  assert.deepEqual(definition.schema.required, ['key']);
-  assert.equal(definition.schema.properties.key.maxLength, 256);
-  assert.throws(() => governanceTableDefinition('../runtime'), { code: 'INVALID_DIVISION' });
+test('division change updates a child and its mappings, without changing its model division',async()=>{
+ const h=harness(),c=await h.seed();h.setFlowDivisions(new Map([['inbound:group','G2S'],['inbound:entity-0','Mutuaide']]));await c.save(registry());
+ const rows=[...h.rows.values()];assert.ok(rows.filter(r=>['DECLINATION','MAPPING'].includes(r.RECORD_TYPE)).every(r=>r.DIVISION_ID==='mut'&&r.DIVISION==='Mutuaide'));assert.equal(h.rows.get('model:group').DIVISION_ID,'g2s');assert.deepEqual((await h.client().load()).registry,registry());
 });
 
-test('organization mismatch stops all registry discovery and mutation', async () => {
-  const h = harness(); h.setOrganization('other-organization');
-  await assert.rejects(h.client().initialize(registry(), 'division-1'), { code: 'ORGANIZATION_MISMATCH' });
-  assert.equal(h.calls.length, 1); assert.equal(h.mutations().length, 0);
+test('multi-page registries keep individual explicit rows without a JSON payload',async()=>{
+ const h=harness(),r=registry('Grand modèle',110);for(const d of r.declinations)d.scopeNote='Contexte métier '.repeat(12);await h.seed(r);assert.deepEqual((await h.client().load()).registry,r);assert.equal(h.rows.size,222);assert.ok([...h.rows.values()].every(r=>!('PAYLOAD' in r)));
 });
 
-test('pagination reconstructs fixed Dublin URLs and ignores an external nextUri', async () => {
-  const h = harness({ paginated: true });
-  await h.client().initialize(registry(), 'division-1');
-  assert.deepEqual((await h.client().load()).registry, registry());
-  assert.ok(h.calls.some(call => new URL(call.url).searchParams.get('pageNumber') === '2'));
-  assert.ok(h.calls.every(call => !call.url.includes('untrusted.invalid')));
-});
-
-test('a successful save only updates registry and a new client must load its base', async () => {
-  const h = harness(), client = h.client(); await client.initialize(registry(), 'division-1');
-  const before = h.mutations().length;
-  await assert.rejects(h.client().save(registry('Future')), { code: 'LOAD_REQUIRED' });
-  const result = await client.save(registry('Version validée'));
-  assert.equal(h.mutations().length, before + 1);
-  assert.equal(h.mutations().at(-1).method, 'PUT');
-  assert.match(h.mutations().at(-1).path, /governance-1\/rows\/registry$/);
-  assert.deepEqual(result.registry, registry('Version validée'));
-  assert.doesNotMatch(JSON.stringify(result), /unit-test-token/);
-  const writeCount = h.mutations().length;
-  await assert.rejects(client.initialize(registry(), 'division-1'), { code: 'ALREADY_INITIALIZED' });
-  assert.equal(h.mutations().length, writeCount);
-});
-
-test('actual returned PAYLOAD maximum controls chunks and round trips Unicode intact', async () => {
-  const h = harness({ limit: 4096 }), client = h.client(), large = registry('Référence 🌍😀', 60);
-  assert.ok(JSON.stringify(large).length > 4096);
-  await client.initialize(large, 'division-1');
-  const written = h.mutations().filter(call => call.path.endsWith('/rows')).map(call => call.body);
-  assert.equal(written.at(-1).key, 'registry'); assert.equal(written.at(-1).RECORD_TYPE, 'manifest');
-  assert.ok(written.length > 2);
-  for (const row of written) assert.ok(row.PAYLOAD.length <= 4096);
-  assert.deepEqual((await h.client().load()).registry, large);
-});
-
-test('oversized manifest is rejected before staging any chunks', async () => {
-  const h = harness({ limit: 1024 }), client = h.client(); await client.initialize(emptyRegistry(), 'division-1');
-  const before = h.mutations().length, committed = structuredClone(h.rows.get('registry'));
-  await assert.rejects(client.save(registry('Grand registre', 60)), { code: 'REGISTRY_TOO_LARGE' });
-  assert.equal(h.mutations().length, before); assert.deepEqual(h.rows.get('registry'), committed);
-});
-
-test('malformed registry is not silently normalized or sent to Genesys', async () => {
-  const h = harness(), invalid = registry(); invalid.declinations.push({ flowId: 'orphan', coreModelId: 'missing' });
-  await assert.rejects(h.client().initialize(invalid, 'division-1'), { code: 'INVALID_REGISTRY' });
-  assert.equal(h.calls.length, 0);
-});
-
-test('schema drift blocks saving without a table schema mutation', async () => {
-  const h = harness(), client = h.client(); await client.initialize(registry(), 'division-1');
-  h.table.schema.properties.PAYLOAD.maxLength = 4096;
-  const before = h.mutations().length;
-  await assert.rejects(client.save(registry('Changed')), { code: 'TABLE_CHANGED' });
-  assert.equal(h.mutations().length, before);
-});
-
-test('mismatched final readback is uncertain and forces a fresh load', async () => {
-  const h = harness(), client = h.client(); await client.initialize(registry(), 'division-1');
-  let written = false;
-  h.setHook((call, response) => {
-    if (call.method === 'PUT') written = true;
-    if (written && call.method === 'GET' && call.path.endsWith('/rows/registry')) return response({ ...h.rows.get('registry'), UPDATED_BY: 'other-writer' });
-  });
-  await assert.rejects(client.save(registry('Updated')), { code: 'READBACK_MISMATCH', uncertain: true });
-  const count = h.mutations().length;
-  await assert.rejects(client.save(registry('Again')), { code: 'LOAD_REQUIRED' });
-  assert.equal(h.mutations().length, count);
-  h.setHook(null); assert.equal((await client.load()).registry.coreModels[0].name, 'Updated');
-});
-
-test('table response identity cannot replace the listed dedicated table id', async () => {
-  const h = harness(); await h.client().initialize(registry(), 'division-1');
-  h.setHook((call, response) => call.path === '/api/v2/flows/datatables/governance-1' ? response({ ...h.table, id: 'runtime-1' }) : undefined);
-  const before = h.mutations().length;
-  await assert.rejects(h.client().load(), { code: 'TABLE_IDENTITY' });
-  assert.equal(h.mutations().length, before);
-});
-
-test('a failed GET after acknowledged commit remains an uncertain write outcome', async () => {
-  const h = harness(), client = h.client(); await client.initialize(registry(), 'division-1');
-  let written = false;
-  h.setHook(call => {
-    if (call.method === 'PUT') written = true;
-    if (written && call.method === 'GET' && call.path.endsWith('/rows/registry')) throw new Error('Connection interrupted');
-  });
-  await assert.rejects(client.save(registry('Committed')), { code: 'NETWORK_ERROR', uncertain: true });
-  h.setHook(null); assert.equal((await client.load()).registry.coreModels[0].name, 'Committed');
+test('HTTP 429 on a read retries only the read, while a write is never replayed',async()=>{
+ const h=harness();let limited=false;
+ h.setHook((call,res)=>{if(!limited&&call.method==='GET'){limited=true;return {...res({},429),headers:{get:()=> '0'}};}});
+ await h.client().load();assert.equal(h.mutations().length,0);
+ h.setHook(null);const c=await h.seed(),start=h.calls.length;
+ h.setHook((call,res)=>call.method==='POST'?res({},429):undefined);
+ await assert.rejects(c.save(registry('Quota')),{status:429});assert.equal(h.calls.slice(start).filter(c=>c.method!=='GET').length,1);
 });

@@ -1,5 +1,6 @@
 /** Whole-journey local drafts. No remote API or publishing capability. */
 import { normalizeSnapshot, buildVoiceInventory } from './data-source.js';
+import {FLOW_INITIALIZATION,validateFlowInitializationTable,validateFlowInitializationRow} from './flow-initialization.js';
 
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
@@ -57,6 +58,16 @@ export function cloneFlow(input, flow, options = {}) {
     byName.get(key).push(table);
   }
   const entryTable = byId.get(sourceFlow.sourceTableId);
+  const initializationTables=sourceFlow.version==='5'?(byName.get(FLOW_INITIALIZATION)||[]):[];
+  if(initializationTables.length>1)throw new Error('Plusieurs tables d’initialisation correspondent au parcours. Rechargez la source.');
+  const initializationTable=initializationTables[0];
+  const initializationRow=initializationTable?.rows.find(row=>text(row.key)===text(sourceFlow.sourceRow.key));
+  if(initializationRow){
+    validateFlowInitializationTable(initializationTable);validateFlowInitializationRow(initializationRow);
+    if(!phone)throw new Error('Renseignez un nouveau numéro d’entrée pour copier les données d’initialisation du parcours.');
+  }
+  const initializationKeyOccupied=key=>initializationRow&&initializationTable.rows.some(row=>text(row.key)===key);
+  if(phone&&initializationKeyOccupied(phone))throw new Error('Ce numéro possède déjà une initialisation de parcours. Choisissez un autre numéro.');
   if (phone && entryTable.rows.some(row => text(row.key) === phone)) throw new Error('Ce numéro est déjà utilisé dans la table d’entrée.');
   const typeTables = TYPE_TABLES[sourceFlow.version];
   const known = new Map();
@@ -139,7 +150,7 @@ export function cloneFlow(input, flow, options = {}) {
       do {
         const suffix = `__${sequence++}`;
         key = `DRAFT_${prefix}`.slice(0, limit - suffix.length) + suffix;
-      } while (occupied.get(table.id).has(key));
+      } while (occupied.get(table.id).has(key)||(id===sourceFlow.id&&initializationKeyOccupied(key)));
     }
     validLength(key, property(table, 'key'), 'La nouvelle clé');
     occupied.get(table.id).add(key);
@@ -180,13 +191,22 @@ export function cloneFlow(input, flow, options = {}) {
     draftTables.get(table.id).rows.push(copy);
     mappings.push({ tableId: table.id, tableName: table.name, sourceNodeId: id, nodeId: `${table.id}:${copy.key}`, oldKey: text(row.key), key: copy.key });
   }
+  // Initialization belongs to the inbound key, not to the graph namespace.
+  // Copy its local values exactly; legacy PDATA references above remain intact.
+  if(initializationRow){
+    const copy={...structuredClone(initializationRow),key:keyMap.get(sourceFlow.id),DESCRIPTION:name,DIVISION:division};
+    validateFlowInitializationRow(copy);
+    for(const [field,value] of Object.entries(copy))if(typeof value==='string')validLength(value,property(initializationTable,field),`Le paramètre d’initialisation ${field}`);
+    draftTables.get(initializationTable.id).rows.push(copy);
+    mappings.push({tableId:initializationTable.id,tableName:initializationTable.name,sourceNodeId:nodeId(initializationTable,initializationRow),nodeId:nodeId(initializationTable,copy),oldKey:text(initializationRow.key),key:copy.key,initialization:true});
+  }
   const flowId = `${entryTable.id}:${keyMap.get(sourceFlow.id)}`;
   const createdAt = new Date().toISOString();
   draft.source.hasLocalDrafts = true;
   draft.source.localDrafts = [...(Array.isArray(draft.source.localDrafts) ? draft.source.localDrafts : []), { flowId, name, division, sourceFlowId: sourceFlow.id, createdAt, kind: 'whole-flow-clone', localOnly: true }];
-  draft.source.relationships = [...(Array.isArray(draft.source.relationships) ? draft.source.relationships : []), { type: 'declination', referenceFlowId: sourceFlow.id, flowId, name, createdLocally: true, nodeMappings: mappings.map(mapping => ({ referenceNodeId: mapping.sourceNodeId, localNodeId: mapping.nodeId })) }];
+  draft.source.relationships = [...(Array.isArray(draft.source.relationships) ? draft.source.relationships : []), { type: 'declination', referenceFlowId: sourceFlow.id, flowId, name, createdLocally: true, nodeMappings: mappings.filter(mapping=>!mapping.initialization).map(mapping => ({ referenceNodeId: mapping.sourceNodeId, localNodeId: mapping.nodeId })) }];
   return {
     snapshot: normalizeSnapshot(draft), flowId,
-    summary: { name, division, sourceFlowId: sourceFlow.id, nodeCount: known.size, tableCount: new Set(mappings.map(mapping => mapping.tableId)).size, mappings, referencesRetained, needsReview, localOnly: true },
+    summary: { name, division, sourceFlowId: sourceFlow.id, nodeCount: mappings.length, tableCount: new Set(mappings.map(mapping => mapping.tableId)).size, mappings, referencesRetained, needsReview, localOnly: true },
   };
 }

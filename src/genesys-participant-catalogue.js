@@ -1,3 +1,4 @@
+import {FLOW_INITIALIZATION,initializationAttributes} from './flow-initialization.js';
 import {GENESYS_API_ORIGIN} from './genesys-direct.js';
 import {PARTICIPANT_CATALOGUE,participantCatalogueDefinition,validateParticipantCatalogueTable,validateParticipantDefinitions,validateParticipantDefinitionChange,catalogueNeedsUpgrade} from './participant-catalogue.js';
 import {participantIdentity,participantAssignments} from './participant-names.js';
@@ -45,8 +46,8 @@ export function createParticipantCatalogueClient(token,{organizationId,fetchImpl
  }
  async function runtimeSnapshot(){
   const tables=await collect('/flows/datatables','&sortBy=id&sortOrder=ascending'),result=[];
-  for(const name of ['W_PARTICIPANT_DATA_V5','W_DECISION_V5']){
-   const matches=tables.filter(t=>t.name?.toUpperCase()===name);if(matches.length!==1)throw Error('La lecture complète des données et conditions V5 est nécessaire au contrôle du catalogue.');
+  for(const name of ['W_PARTICIPANT_DATA_V5','W_DECISION_V5',FLOW_INITIALIZATION]){
+   const matches=tables.filter(t=>t.name?.toUpperCase()===name);if(!matches.length&&name===FLOW_INITIALIZATION)continue;if(matches.length!==1)throw Error('La lecture complète des données et conditions V5 est nécessaire au contrôle du catalogue.');
    const table=matches[0];result.push({...table,rows:await collect(`/flows/datatables/${encodeURIComponent(table.id)}/rows`,'&showbrief=false')});
   }
   return {tables:result};
@@ -60,7 +61,7 @@ export function createParticipantCatalogueClient(token,{organizationId,fetchImpl
   const division=await request('/authorization/divisions/'+encodeURIComponent(after.DIVISION_ID));if(division.id!==after.DIVISION_ID||division.name!==after.DIVISION)throw Error('La division de la définition a changé.');
   const snapshot=await runtimeSnapshot();
   if(!expected){
-   const names=snapshot.tables.flatMap(t=>t.name.toUpperCase()==='W_DECISION_V5'?t.rows.map(r=>r.PARTICIPANT_DATA_TO_CHECK).filter(Boolean):t.rows.flatMap(r=>participantAssignments(r).map(a=>a.name)));
+   const names=snapshot.tables.flatMap(t=>t.name.toUpperCase()==='W_DECISION_V5'?t.rows.map(r=>r.PARTICIPANT_DATA_TO_CHECK).filter(Boolean):t.rows.flatMap(r=>(t.name===FLOW_INITIALIZATION?initializationAttributes(r):participantAssignments(r)).map(a=>a.name)));
    if(names.some(name=>participantIdentity(name)===participantIdentity(after.key)&&name!==after.key))throw Error('Un attribut existe déjà avec une autre casse dans les configurations WOLF.');
   }
   const dynamic=validateParticipantDefinitionChange(expected,after,snapshot);

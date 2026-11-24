@@ -1,3 +1,4 @@
+import {FLOW_INITIALIZATION,initializationAttributes,FLOW_INITIALIZATION_TYPES} from './flow-initialization.js';
 /** Shared definitions; Architect runtime values remain in their WOLF tables. */
 import {participantIdentity,participantAssignments} from './participant-names.js';
 export const PARTICIPANT_CATALOGUE='STUDIO_PARTICIPANT_DATA_V5';
@@ -66,6 +67,7 @@ export function participantDefinition(name,value,division){
 export function participantUsage(snapshot,name){
  const uses=[];
  for(const table of snapshot?.tables||[]){
+  if(table.name===FLOW_INITIALIZATION)for(const row of table.rows)for(const item of initializationAttributes(row))if(item.name===name)uses.push({table:table.name,key:row.key,kind:'initialization',value:item.value,type:item.type,dynamic:false});
   if(/^W_PARTICIPANT_DATA_v5$/i.test(table.name))for(const row of table.rows){
    for(const item of participantAssignments(row))if(item.name===name)uses.push({table:table.name,key:row.key,kind:'initialization',value:item.value,dynamic:/\$var:|^var:/i.test(item.value)});
   }
@@ -80,6 +82,7 @@ export function validateParticipantDefinitionChange(before,after,snapshot){
  const uses=participantUsage(snapshot,after.key);
  for(const use of uses){
   try{
+   if(use.type&&FLOW_INITIALIZATION_TYPES[after.VALUE_TYPE]!==use.type)throw Error('Le type est déjà utilisé dans la table d’initialisation.');
    if(use.kind==='condition'&&!participantOperators(after).includes(use.operator))throw Error('Opérateur existant incompatible avec ce type.');
    if(!use.dynamic&&!(use.kind==='condition'&&['exist','empty'].includes(use.operator)))validateParticipantValue(after,use.value);
   }catch(error){throw Error(`${use.table} · ${use.key} : ${error.message} La définition existante est conservée.`);}

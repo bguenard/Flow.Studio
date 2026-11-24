@@ -64,7 +64,7 @@ Les données de test ne sont pas proposées dans la connexion de l’application
 - TTS ou message enregistré, listes Genesys avec recherche : files, calendriers, urgences, compétences, langues, utilisateurs, scripts, flows, prompts et bots. Bot externe possible par identifiant explicite.
 - Comparaison de valeurs et insertion choisie de blocs avec examen des raccordements.
 - Reprise des brouillons, saisies et créations dans IndexedDB, séparés par organisation et utilisateur. Les choix de comparaison sont conservés ; la revue de publication doit toujours être renouvelée.
-- Core Models : familles, versions, déclinaisons et périmètres déclarés, enregistrés dans la Data Table Genesys dédiée `STUDIO_CORE_MODELS_V5`. Ces déclarations sont écrites dès leur validation, hors du centre de publication ; elles nécessitent une connexion Genesys et restent en lecture seule avec un export local.
+- Core Models : familles, versions, déclinaisons et périmètres déclarés, enregistrés dans la Data Table Genesys dédiée `STUDIO_CORE_MODEL_RECORDS_V5`. Ces déclarations sont écrites dès leur validation, hors du centre de publication ; elles nécessitent une connexion Genesys et restent en lecture seule avec un export local.
 - Contrôle de configuration : références non résolues, contraintes des schémas, destinations dynamiques, rapport exportable et accès à l’étape concernée.
 - Studio d’appel : branches du parcours réel chargé, choix au clavier vocal, version Genesys ou modifications enregistrées, retour à l’étape précédente, synthèse vocale du navigateur, fil d’appel, mode présentation et export du scénario.
 - Activité du numéro : analytics Genesys en lecture, sous réserve des permissions du compte.
@@ -159,7 +159,7 @@ Le centre de publication contrôle la sélection exacte des lignes : contraintes
 
 ## Chargement progressif du catalogue
 
-Au démarrage, le Studio lit en priorité les lignes de `W_INBOUND_CALL_V5` et le référentiel `STUDIO_CORE_MODELS_V5`. Le catalogue et le filtre Core Model deviennent disponibles avant les autres configurations. Les noms et identifiants des tables accessibles sont toujours inventoriés pour sélectionner le périmètre voix V5.
+Au démarrage, le Studio lit en priorité les lignes de `W_INBOUND_CALL_V5` et le référentiel `STUDIO_CORE_MODEL_RECORDS_V5`. Le catalogue et le filtre Core Model deviennent disponibles avant les autres configurations. Les noms et identifiants des tables accessibles sont toujours inventoriés pour sélectionner le périmètre voix V5.
 
 Les autres tables voix V5 sont ensuite lues en arrière-plan, avec au plus trois lectures de tables simultanées. Les réglages, simulations, analyses, reprises de brouillons et publications attendent le chargement complet : une source partielle ne doit pas devenir une source éditable ou remplacer des brouillons persistés. Un échec laisse le catalogue consultable et propose de relancer la lecture. Déconnexion ou nouveau chargement annulent le précédent.
 
@@ -203,3 +203,34 @@ La création d’une déclinaison copie les configurations d’initialisation ac
 Le diagramme de la vue Administration est placé par [ELK](https://github.com/kieler/elkjs) (elkjs 0.12.1), copié tel quel dans `src/vendor/elk.bundled.js` avec sa licence (`src/vendor/elkjs-LICENSE.md`, EPL-2.0 ou GPL-3.0-or-later). Le fichier (1,6 Mo) n’est chargé qu’à l’ouverture du premier diagramme ; l’application reste statique et ne demande aucune installation.
 
 Le Studio fournit à ELK les cartes, leurs sorties et les liens (`src/journey-diagram.js`) ; ELK renvoie les positions et le tracé à angles droits. La carte de simulation et la carte d’activité utilisent encore l’ancien placement fait main (`layoutJourney` dans `src/journey-canvas.js`).
+
+## Initialisation des participant data par numéro
+
+L’écran **Administration → Initialisation par numéro** crée et remplit la table dédiée `STUDIO_PARCOURS_INIT_V5`. La clé est le numéro exact de l’entrée WOLF (signe `+` conservé). La table comporte `DESCRIPTION`, `DIVISION` et quinze triplets `ATTRIBUTE_01_NAME`, `ATTRIBUTE_01_TYPE`, `ATTRIBUTE_01_VALUE` jusqu’à `ATTRIBUTE_15_*` : 48 colonnes au total.
+
+Les valeurs se modifient dans **Parcours → Données du parcours**, puis suivent la revue et la publication habituelles. Les noms et contraintes proviennent du catalogue administrateur `STUDIO_PARTICIPANT_DATA_V5`. Texte et liste correspondent au type de stockage `string`, entier à `int`, Oui/Non à `bool`. La valeur reste une chaîne exacte ; le type sert à la contrôler. Une liste conserve ses choix autorisés dans le catalogue.
+
+La migration est additive : elle lit uniquement les groupes `pdata:` de la première transition `NEXT_TARGET`, contrôle les types et doublons, puis crée les lignes absentes. Elle relit les sources avant chaque création et vérifie les valeurs enregistrées. Une ligne dédiée existante n’est jamais écrasée ; une différence bloque la migration globale. Les anciennes lignes `*_ACTIVATION`, les suffixes d’entrée et les affectations `*_CONTEXT_*` plus tard dans l’appel restent inchangés.
+
+**La table seule n’active pas l’initialisation dans Architect.** Le flow doit lire la ligne par numéro et affecter les attributs avant toute condition qui les consulte. La bascule du lecteur et le retrait des anciennes affectations d’entrée sont une étape distincte, à valider par des appels avant nettoyage. Voir [le contrat Architect](docs/INITIALISATION_ARCHITECT.md).
+
+Une nouvelle déclinaison ou version copie les quinze emplacements vers son nouveau numéro, avec sa division. Les valeurs des enfants déjà créés ne sont pas réécrites automatiquement lors d’une évolution du Core Model.
+
+## Référentiel Core Models en lignes distinctes
+
+`STUDIO_CORE_MODEL_RECORDS_V5` remplace le registre JSON global. L’application ne lit plus `STUDIO_CORE_MODELS_V5` et n’embarque pas de conversion automatique de l’ancien format.
+
+| RECORD_TYPE | Une ligne représente | Colonnes principales |
+| --- | --- | --- |
+| MODEL | Une famille de parcours | MODEL_ID, MODEL_NAME |
+| VERSION | Une version de référence | MODEL_ID, FLOW_ID, VERSION_LABEL |
+| DECLINATION | Le rattachement d’un parcours | MODEL_ID, FLOW_ID, BASE_FLOW_ID, SCOPE |
+| MAPPING | Une correspondance d’étapes | FLOW_ID, REFERENCE_NODE_ID, LOCAL_NODE_ID |
+
+Chaque ligne porte `DIVISION_ID` (identifiant Genesys) et `DIVISION` (nom lisible). Le modèle prend la division de sa première version ; chaque version prend celle de son parcours de référence ; une déclinaison et ses correspondances prennent celle de son propre parcours. Les noms proviennent du catalogue des divisions Genesys. Une division absente ou ambiguë bloque l’enregistrement. La division qui héberge la Data Table est choisie séparément à sa création. **Ces colonnes ne constituent pas une restriction d’accès par ligne** : les droits Genesys restent ceux de la Data Table.
+
+Les clés restent stables lors d’un renommage. Le Studio n’écrit que les lignes modifiées et conserve l’ordre des versions avec `POSITION`. Les suppressions de déclarations passent à `STATUS=deleted` ; elles ne suppriment aucun parcours WOLF.
+
+Un verrou temporaire `write_lock`, créé par POST avec une clé unique, empêche deux écritures du Studio de se chevaucher. Le journal temporaire contient les lignes avant/après dans des colonnes explicites. Le Studio vérifie les réponses et les empreintes avant de clôturer l’opération. En cas de coupure, il refuse de charger un ensemble partiel et propose **Reprendre l’enregistrement** : une préparation est abandonnée, une écriture commencée est terminée, une écriture validée est simplement clôturée. Ne lancer cette reprise qu’après l’arrêt de l’autre enregistrement éventuel. Les modifications directes dans Genesys sont vérifiées avant écriture mais ne participent pas au verrou du Studio.
+
+Les permissions Architect Datatable Row Add, Edit **et Delete** sont nécessaires. Delete sert exclusivement à retirer le verrou et le journal temporaires ; les lignes métier restent conservées. Une erreur pendant la clôture laisse une opération récupérable. Aucune nouvelle tentative d’écriture n’est faite silencieusement après une erreur réseau. Les appels d’enregistrement sont espacés pour respecter les quotas Genesys ; une lecture limitée par HTTP 429 peut être relancée une seule fois après le délai indiqué. Le chargement normal ne subit pas cet espacement.

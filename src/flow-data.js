@@ -1,3 +1,4 @@
+import {FLOW_INITIALIZATION,validateFlowInitializationTable,initializationAttributes,createFlowInitializationRow} from './flow-initialization.js';
 import {PARTICIPANT_CATALOGUE,catalogueDefinition,validateParticipantValue} from './participant-catalogue.js';
 /** Flow-entry participant data plans. No network writes; source rows remain immutable. */
 import {normalizeSnapshot,buildVoiceInventory} from './data-source.js';
@@ -21,7 +22,14 @@ export function participantOptions(snapshot){
 export function flowDataModel(input,flowId){
  const snapshot=normalizeSnapshot(input),flow=buildVoiceInventory(snapshot).flows.find(f=>f.id===flowId);
  if(!flow||flow.version!=='5')throw Error('Choisissez un parcours voix V5.');
- const entry=flow.nodes.find(n=>n.id===flow.id),table=tableOf(snapshot);
+ const entry=flow.nodes.find(n=>n.id===flow.id),dedicated=snapshot.tables.find(t=>t.name===FLOW_INITIALIZATION);
+ if(dedicated){
+  validateFlowInitializationTable(dedicated);const row=dedicated.rows.find(r=>r.key===entry.key)||null;
+  const items=initializationAttributes(row).map(item=>({...item,id:'slot:'+item.slot,dynamic:false}));
+  const catalogue=snapshot.tables.find(t=>t.name===PARTICIPANT_CATALOGUE),used=[...new Set(flow.nodes.filter(n=>n.type==='decision').map(n=>text(n.row.PARTICIPANT_DATA_TO_CHECK)).filter(Boolean))];
+  return {flowId,entry,table:dedicated,row,dedicated:true,catalogue,catalogueRequired:true,groups:[],items,used,options:participantOptions(snapshot),signature:stable({entry:entry.row,row,schema:dedicated.schema,catalogue}),runtime:used.filter(n=>!items.some(i=>i.name===n))};
+ }
+ const table=tableOf(snapshot);
  if(!entry?.schema?.properties?.NEXT_TARGET||!entry.schema.properties.NEXT_TARGET_TYPE)throw Error('Le schéma de la première transition doit être disponible.');
  if(!text(entry.row.NEXT_TARGET_TYPE))throw Error('Configurez la première étape avant les données du parcours.');
  const groups=keys(entry.row.NEXT_TARGET).map(key=>{const row=table.rows.find(r=>text(r.key)===key);if(!row)throw Error(`La configuration d’entrée « ${key} » est introuvable.`);return {key,row};});
@@ -41,6 +49,19 @@ function validateValue(name,value){
 export function prepareFlowData({snapshot:input,flowId,signature,values={},additions=[],divisions=[]}){
  const snapshot=normalizeSnapshot(input),model=flowDataModel(snapshot,flowId),{entry,table,groups}=model;
  if(signature!==model.signature)throw Error('Les données ont changé. Rouvrez cet écran avant de les modifier.');
+ if(model.dedicated){
+  if(!model.row&&keys(entry.row.NEXT_TARGET).length)throw Error('Migrez d’abord les valeurs existantes avec « Migration des initialisations ».');
+  const attributes=model.items.map(item=>({name:item.name,value:Object.hasOwn(values,item.id)?text(values[item.id]):item.value}));
+  attributes.push(...additions.map(a=>({name:text(a.name),value:text(a.value)})));
+  const row=createFlowInitializationRow({key:entry.key,description:entry.row.DESCRIPTION||'',division:entry.row.DIVISION||'',attributes},snapshot);
+  const changed=!model.row||Object.keys(row).some(k=>row[k]!==text(model.row[k]));
+  const m={...mapping(table,row),initialization:true};
+  const createdRows=changed&&!model.row?[{tableId:table.id,nodeId:m.nodeId,row}]:[];
+  const updatedRows=changed&&model.row?[{node:{id:m.nodeId,tableId:table.id,tableName:table.name,key:row.key,row:model.row},row}]:[];
+  const mappings=createdRows.length?[m]:[];
+  return {ok:true,errors:[],flowId,nodeId:entry.id,createdRows,updatedRows,mappings,summary:{kind:'flow-data',title:'Données du parcours',targetFlowId:flowId,nodeCount:createdRows.length,mappings,notices:['Valeurs stockées par numéro dans '+FLOW_INITIALIZATION+'. Le flow Architect doit lire cette table pour les appliquer.'],localOnly:true}};
+ }
+ if(snapshot.source.flowInitializationRequired)throw Error('Créez et migrez la table dédiée avant de modifier les valeurs d’entrée.');
  const createdRows=[],updatedRows=[],notices=[],replacements=new Map(),nextTable=structuredClone(table);
  const uses=key=>snapshot.tables.flatMap(t=>t.rows.flatMap(row=>Object.entries(row).filter(([field,value])=>/TARGET(?:_\d+)?$/.test(field)&&keys(value).includes(key)).map(([field])=>`${t.id}:${row.key}:${field}`)));
  const changed=new Map();

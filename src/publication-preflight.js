@@ -1,3 +1,4 @@
+import {FLOW_INITIALIZATION,validateFlowInitializationCatalogue} from './flow-initialization.js';
 import {PARTICIPANT_CATALOGUE,isParticipantCatalogue,validateParticipantDefinition} from './participant-catalogue.js';
 /** Local preflight over the exact selected publication. Does not call or write Genesys. */
 import {buildVoiceInventory,normalizeSnapshot} from './data-source.js';
@@ -38,6 +39,7 @@ function dependencyIndex(snapshot){
    }else add(localReferenceTable(field,{tableName:table.name,row}),str(value));
   }
   if(/^W_PARTICIPANT_DATA_v5$/i.test(table.name))add(PARTICIPANT_CATALOGUE,str(row.key));
+  if(/^W_INBOUND_CALL_v5$/i.test(table.name))add(FLOW_INITIALIZATION,str(row.key));
   links.set(id,dependencies);
  }
  const roots=[...nodes].filter(([,n])=>/^W_INBOUND_CALL_v5$/i.test(n.table.name));
@@ -65,6 +67,7 @@ export function publicationPreflight({snapshot,rows=[],selected=new Set(rows.map
   for(const field of fields){
    try{validatePublicationRow(entry.after,table.schema?{...table.schema,required:[]}:table.schema,[field]);}catch(error){entryFinding(entry,'error','schema','Valeur incompatible avec la table',error.message,field);}
   }
+  if(table.name===FLOW_INITIALIZATION){try{validateFlowInitializationCatalogue(entry.after,projected.next);}catch(error){entryFinding(entry,'error','initialization','Initialisation invalide',error.message);}}
   if(isParticipantCatalogue(table.name)){try{validateParticipantDefinition(entry.after);}catch(error){entryFinding(entry,'error','catalogue','Définition de donnée invalide',error.message);}}
   const node={tableName:table.name,schema:table.schema,row:entry.before||{}};
   // Creation assigns identities once. Updates cannot rename logical keys.

@@ -1,3 +1,4 @@
+import {FLOW_INITIALIZATION,validateFlowInitializationTable,validateFlowInitializationCatalogue,initializationAttributes} from './flow-initialization.js';
 import {PARTICIPANT_CATALOGUE,isParticipantCatalogue,validateParticipantCatalogueTable,validateParticipantDefinition,validateParticipantDefinitions,catalogueDefinition,validateParticipantValue} from './participant-catalogue.js';
 import {validateDecision,decisionFields} from './decision-fields.js';
 import {participantIdentity,participantAssignments,parseAssignments} from './participant-names.js';
@@ -30,6 +31,8 @@ function createdDependencies(entry,snapshot,created){
       for(const extra of extras)if(/^pdata:/i.test(extra))for(const key of extra.slice(6).split(';'))add('W_PARTICIPANT_DATA_V5',key);
     }else add(localReferenceTable(field),String(value||''));
   }
+  if(/^W_INBOUND_CALL_v5$/i.test(entry.table))add(FLOW_INITIALIZATION,entry.key);
+  if(entry.table===FLOW_INITIALIZATION)for(const item of initializationAttributes(row))add(PARTICIPANT_CATALOGUE,item.name);
   if(/^W_PARTICIPANT_DATA_v5$/i.test(entry.table))add(PARTICIPANT_CATALOGUE,entry.key);
   return [...dependencies];
 }
@@ -71,7 +74,7 @@ export function publicationRows(snapshot,drafts,creations=new Map(),blocks=new M
     if(!fields.length&&!isNew)continue;
     rows.push({id,tableId:table.id,table:table.name,key:String(original.key),label:after.DESCRIPTION||original.key,before,after,fields,kind:isNew?'create':'update'});
   }
-  for(const entry of rows){if(entry.kind==='create'&&participantSources.has(entry.id))entry.participantSource=copy(participantSources.get(entry.id));entry.requiresCreatedRows=createdDependencies(entry,snapshot,created);if(entry.kind==='create'&&participantNames.has(entry.id))entry.participantName=participantNames.get(entry.id);if((snapshot.source?.participantCatalogueRequired||snapshot.tables.some(t=>isParticipantCatalogue(t.name)))&&/^W_(PARTICIPANT_DATA|DECISION)_v5$/i.test(entry.table))entry.catalogueValidation=true;}
+  for(const entry of rows){if(entry.kind==='create'&&participantSources.has(entry.id))entry.participantSource=copy(participantSources.get(entry.id));entry.requiresCreatedRows=createdDependencies(entry,snapshot,created);if(entry.kind==='create'&&participantNames.has(entry.id))entry.participantName=participantNames.get(entry.id);if((snapshot.source?.participantCatalogueRequired||snapshot.tables.some(t=>isParticipantCatalogue(t.name)))&&(/^W_(PARTICIPANT_DATA|DECISION)_v5$/i.test(entry.table)||entry.table===FLOW_INITIALIZATION))entry.catalogueValidation=true;}
   return orderPublicationEntries(rows);
 }
 export function validatePublicationRow(row,schema,fields=Object.keys(row)) {
@@ -123,7 +126,7 @@ export function createPublicationClient(token,{fetchImpl=globalThis.fetch,now=()
     return row;
   }
   async function verifyTypedParticipants(entries){
-    const guarded=entries.filter(e=>e.catalogueValidation&&(/^W_DECISION_v5$/i.test(e.table)?e.kind==='create'||e.fields.some(f=>decisionFields.includes(f)):e.fields.some(f=>/^PDATA_LIST_[1-5]$/.test(f))));
+    const guarded=entries.filter(e=>e.table===FLOW_INITIALIZATION||e.catalogueValidation&&(/^W_DECISION_v5$/i.test(e.table)?e.kind==='create'||e.fields.some(f=>decisionFields.includes(f)):e.fields.some(f=>/^PDATA_LIST_[1-5]$/.test(f))));
     if(!guarded.length)return;
     const tables=(await collectTyped('/flows/datatables')).filter(t=>t.name===PARTICIPANT_CATALOGUE);if(tables.length!==1)throw Error('Le catalogue administrateur doit être disponible avant publication.');
     const table=validateParticipantCatalogueTable(await request(`/flows/datatables/${encodeURIComponent(tables[0].id)}?expand=schema`));
@@ -131,6 +134,7 @@ export function createPublicationClient(token,{fetchImpl=globalThis.fetch,now=()
     rows.push(...entries.filter(e=>e.kind==='create'&&isParticipantCatalogue(e.table)).map(e=>e.after));validateParticipantDefinitions(rows);
     const snapshot={source:{participantCatalogueRequired:true},tables:[{...table,rows}]};
     for(const entry of guarded){
+      if(entry.table===FLOW_INITIALIZATION){validateFlowInitializationCatalogue(entry.after,snapshot);continue;}
       if(/^W_DECISION_v5$/i.test(entry.table)){validateDecision(entry.after,{snapshot});continue;}
       const baseline=entry.kind==='create'?await readParticipantSource(entry):entry.before;
       for(const field of Object.keys(entry.after).filter(field=>/^PDATA_LIST_[1-5]$/.test(field)&&(entry.kind==='create'||entry.fields.includes(field)))){
@@ -196,10 +200,10 @@ export function createPublicationClient(token,{fetchImpl=globalThis.fetch,now=()
     for(const candidate of entries){
       const entry=copy(candidate);
       for(const key of ['status','verifiedAt','error','observed'])delete entry[key];
-      if((!isWolfV5VoiceTable(entry.table)&&!isParticipantCatalogue(entry.table))||!entry.tableId||!entry.key||ids.has(entry.id)||entry.id!==`${entry.tableId}:${entry.key}`)throw Error('Ligne hors périmètre V5 ou identité dupliquée.');
+      if((!isWolfV5VoiceTable(entry.table)&&!isParticipantCatalogue(entry.table)&&entry.table!==FLOW_INITIALIZATION)||!entry.tableId||!entry.key||ids.has(entry.id)||entry.id!==`${entry.tableId}:${entry.key}`)throw Error('Ligne hors périmètre V5 ou identité dupliquée.');
       if(!['create','update'].includes(entry.kind)||entry.after.key!==entry.key||entry.kind==='update'&&entry.before?.key!==entry.key)throw Error('L’identité de la ligne ne peut pas être modifiée.');
       ids.add(entry.id);
-      if(!schemas.has(entry.tableId)){const table=await request(`/flows/datatables/${encodeURIComponent(entry.tableId)}?expand=schema`);if(table.id!==entry.tableId||table.name!==entry.table)throw Error('La table Genesys a changé.');if(isParticipantCatalogue(entry.table))validateParticipantCatalogueTable(table);schemas.set(entry.tableId,table.schema);}
+      if(!schemas.has(entry.tableId)){const table=await request(`/flows/datatables/${encodeURIComponent(entry.tableId)}?expand=schema`);if(table.id!==entry.tableId||table.name!==entry.table)throw Error('La table Genesys a changé.');if(entry.table===FLOW_INITIALIZATION)validateFlowInitializationTable(table);if(isParticipantCatalogue(entry.table))validateParticipantCatalogueTable(table);schemas.set(entry.tableId,table.schema);}
       if(isParticipantCatalogue(entry.table)){if(entry.kind!=='create')throw Error('Le catalogue ne permet ici que la création de nouvelles définitions.');validateParticipantDefinition(entry.after);}
       const remote=await read(entry);
       if(entry.kind==='create'&&remote!==null)throw Error(`La ligne « ${entry.key} » existe déjà dans Genesys.`);
@@ -240,7 +244,7 @@ export function createPublicationClient(token,{fetchImpl=globalThis.fetch,now=()
     try {
       const actor=await identity();if(actor.organizationId!==plan.actor.organizationId||actor.userId!==plan.actor.userId)throw Error('La session Genesys a changé.');
       await journal(copy(run));
-      for(const tableId of new Set(run.entries.map(e=>e.tableId))){const table=await request(`/flows/datatables/${encodeURIComponent(tableId)}?expand=schema`);for(const entry of run.entries.filter(e=>e.tableId===tableId)){if(table.id!==entry.tableId||table.name!==entry.table)throw Error('La table Genesys a changé.');if(isParticipantCatalogue(entry.table)){validateParticipantCatalogueTable(table);validateParticipantDefinition(entry.after);}validatePublicationRow(entry.after,table.schema,entry.kind==='create'?Object.keys(entry.after):entry.fields.filter(k=>!(entry.removed||[]).includes(k)));}}
+      for(const tableId of new Set(run.entries.map(e=>e.tableId))){const table=await request(`/flows/datatables/${encodeURIComponent(tableId)}?expand=schema`);for(const entry of run.entries.filter(e=>e.tableId===tableId)){if(table.id!==entry.tableId||table.name!==entry.table)throw Error('La table Genesys a changé.');if(entry.table===FLOW_INITIALIZATION)validateFlowInitializationTable(table);if(isParticipantCatalogue(entry.table)){validateParticipantCatalogueTable(table);validateParticipantDefinition(entry.after);}validatePublicationRow(entry.after,table.schema,entry.kind==='create'?Object.keys(entry.after):entry.fields.filter(k=>!(entry.removed||[]).includes(k)));}}
       await verifyCatalogueNames(run.entries);
       await verifyParticipantNames(run.entries);
       await verifyTypedParticipants(run.entries);

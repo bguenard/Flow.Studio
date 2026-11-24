@@ -74,6 +74,8 @@ export function fieldLabel(key) {
     const labels = new Map([['AUDIO', 'Message'], ['HOLD_MUSIC', 'Musique'], ['HOLD_TIMEOUT', 'Durée de musique'], ['SUBROUTINES_LIST', 'Contrôles'], ['MENU', 'Menu']]);
     return `Attente ${sequence[2]} · ${labels.get(sequence[1])}`;
   }
+  const initialization = name.match(/^ATTRIBUTE_(0[1-9]|1[0-5])_(NAME|TYPE|VALUE)$/);
+  if(initialization)return `Attribut ${Number(initialization[1])} · ${{NAME:'nom',TYPE:'type',VALUE:'valeur initiale'}[initialization[2]]}`;
   if (/^PDATA_LIST_[1-5]$/.test(name)) return `Contexte client · valeurs ${name.at(-1)}`;
   const ratio = name.match(/^RATIO_?(10|[1-9])$/);
   if (ratio) return `Poids de répartition ${ratio[1]}`;
