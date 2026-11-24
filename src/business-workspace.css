@@ -112,10 +112,10 @@
   --kind-soft: #eef2f6;
 }
 :is(.story-step, .story-link):is(
-    [data-kind='inboundcall'],
-    [data-kind='standardcallflow'],
-    [data-kind='segment']
-  ) {
+  [data-kind='inboundcall'],
+  [data-kind='standardcallflow'],
+  [data-kind='segment']
+) {
   --kind: #ab530d;
   --kind-soft: #fff0e0;
 }
@@ -128,13 +128,13 @@
   --kind-soft: #edf0fb;
 }
 :is(.story-step, .story-link):is(
-    [data-kind='menu'],
-    [data-kind='bot'],
-    [data-kind='quickreplies'],
-    [data-kind='carousel'],
-    [data-kind='card'],
-    [data-kind='waitforinput']
-  ) {
+  [data-kind='menu'],
+  [data-kind='bot'],
+  [data-kind='quickreplies'],
+  [data-kind='carousel'],
+  [data-kind='card'],
+  [data-kind='waitforinput']
+) {
   --kind: #6b3f95;
   --kind-soft: #f4eef9;
 }
@@ -366,6 +366,7 @@
   margin: 0;
   padding: 8px 24px;
   border-top: 1px solid #e9edf0;
+  container: branches / inline-size;
 }
 .story-branches > li {
   display: grid;
@@ -522,7 +523,7 @@
 
 /* Dès que la place le permet, deux zones : à gauche l'étape et ce qui s'y passe,
    à droite où va l'appel ensuite. Les deux se remplissent en hauteur l'une contre l'autre. */
-@container story (min-width:760px) {
+@container story (min-width:820px) {
   .story-card.has-next {
     grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
     grid-template-rows: auto 1fr;
@@ -553,9 +554,18 @@
     padding: 22px 24px 22px 8px;
   }
 }
-@container story (max-width:479.98px) {
+/* Zone des suites étroite : la situation au-dessus de sa destination, plutôt que deux colonnes serrées. */
+@container branches (max-width:539.98px) {
   .story-branches > li {
     grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .story-branch-label {
+    min-height: 0;
+    padding-top: 0;
+  }
+  .story-branch-target {
+    padding-left: 19px;
   }
 }
 

@@ -90,7 +90,7 @@ function shownValue(field, pending) {
 }
 /** Ce que le client entend (ou lit, dans une conversation écrite) : une bulle, pas une ligne de réglage. */
 const quote = (value, glyph) =>
-  `<span class="story-quote">${icon(glyph)}<span>« ${esc(value)} »</span></span>`;
+  `<span class="story-quote">${icon(glyph)}<span>«\u00a0${esc(value)}\u00a0»</span></span>`;
 /** Situation d'une branche : elle colore sa pastille, le libellé reste écrit en toutes lettres. */
 const BRANCH_TONES = {
   OPEN: 'yes',

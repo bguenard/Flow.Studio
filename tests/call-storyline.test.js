@@ -246,27 +246,21 @@ test('the condition of a rule is one of its settings, read like the others', () 
 test('what the caller hears reads as a spoken message, in a bubble', () => {
   const [entry, hours] = steps(businessSteps(flow));
   assert.ok(
-    entry.includes(`<span class="story-quote">${icon('speaker')}<span>« Bienvenue à l’agence`),
+    entry.includes(`<span class="story-quote">${icon('speaker')}<span>«\u00a0Bienvenue à l’agence`),
   );
   assert.ok(
-    hours.includes(`<span class="story-quote">${icon('speaker')}<span>« Nos conseillers`),
+    hours.includes(`<span class="story-quote">${icon('speaker')}<span>«\u00a0Nos conseillers`),
   );
   // A written conversation is not spoken.
   const written = steps(businessSteps({ ...flow, media: 'messaging' }))[0];
-  assert.ok(written.includes(`<span class="story-quote">${icon('message')}<span>«`));
+  assert.ok(written.includes(`<span class="story-quote">${icon('message')}<span>«\u00a0`));
   assert.ok(!written.includes(icon('speaker')));
 });
 
 test('a menu choice shows the phone key the caller presses', () => {
   const menu = steps(businessSteps(flow))[2];
-  assert.match(
-    menu,
-    /<span class="story-key" aria-hidden="true">1<\/span><span>Choix 1<\/span>/,
-  );
-  assert.match(
-    menu,
-    /<span class="story-key" aria-hidden="true">2<\/span><span>Choix 2<\/span>/,
-  );
+  assert.match(menu, /<span class="story-key" aria-hidden="true">1<\/span><span>Choix 1<\/span>/);
+  assert.match(menu, /<span class="story-key" aria-hidden="true">2<\/span><span>Choix 2<\/span>/);
   const keys = structuredClone(flow);
   const edge = keys.edges.find((item) => item.branch === 'OPTION1');
   edge.branch = 'OPTIONSTAR';
@@ -289,7 +283,10 @@ test('each branch is marked by its situation: open, closed, urgent, waiting', ()
   assert.equal(tone(team, 'Après l’attente'), 'wait');
   assert.equal(tone(menu, 'Sinon'), 'plain');
   // The mark never replaces the wording.
-  assert.match(hours, /<span class="story-dot" aria-hidden="true"><\/span><span>Pendant l’ouverture/);
+  assert.match(
+    hours,
+    /<span class="story-dot" aria-hidden="true"><\/span><span>Pendant l’ouverture/,
+  );
 });
 
 test('the edit button names its action with an icon; a read-only step is only consulted', () => {
