@@ -3,7 +3,7 @@ import { routeTargetKey } from './v5-fields.js';
 /** WOLF V5 design plans over the loaded DT schemas. Pure, with no API writes. */
 import { normalizeSnapshot, buildJourneyInventory } from './data-source.js';
 import { fieldLabel, coerceRowValue } from './draft-fields.js';
-import { nodeTitle, branchLabel } from './business.js';
+import { nodeTitle, branchLabel, flowRoutes } from './business.js';
 import { sortDestinations } from './destination-order.js';
 import { PARTICIPANT_CATALOGUE, catalogueRows } from './participant-catalogue.js';
 import { validateDecision } from './decision-fields.js';
@@ -204,10 +204,55 @@ export function designerOptions({ snapshot: input, flow, media = flow?.media || 
     catalogue,
     placements,
     destinations: sortDestinations(destinations),
+    removals: removals(snapshot, live),
     notices,
     participantData,
     returnAllowedNodes: live.nodes.filter((n) => canReturnToWaiting(live, n.id)).map((n) => n.id),
   };
+}
+/** Blocs qui peuvent sortir du parcours : les branches qui y mènent et les suites qu'ils offrent. */
+function removals(snapshot, live) {
+  const routes = flowRoutes(live),
+    slots = (node) => outlets(snapshot.tables.find((t) => t.id === node.tableId));
+  return live.nodes
+    .filter((node) => node.id !== live.id && typesFor(live.media)[node.type])
+    .map((node) => {
+      const incoming = [];
+      let blocked = '';
+      for (const edge of live.edges) {
+        if (edge.to !== node.id || edge.from === node.id || edge.relationship === 'context')
+          continue;
+        const parent = live.nodes.find((n) => n.id === edge.from),
+          slot = parent && slots(parent).find((s) => s.field === edge.field);
+        if (slot)
+          incoming.push({
+            fromId: parent.id,
+            field: slot.field,
+            targetField: slot.targetField,
+            label: `${nodeTitle(parent)} · ${slot.label}`,
+          });
+        // Un menu d'attente ou une carte se rattache par un réglage, pas par une branche à raccorder.
+        else
+          blocked ||= `Ce bloc est rattaché à « ${nodeTitle(parent)} » par le réglage « ${fieldLabel(edge.field)} ». Modifiez d’abord ce réglage.`;
+      }
+      if (!incoming.length) blocked ||= 'Aucune branche de ce parcours ne mène à ce bloc.';
+      return {
+        nodeId: node.id,
+        type: node.type,
+        label: nodeTitle(node),
+        blocked,
+        incoming,
+        // Une sortie qui revient sur le bloc lui-même ne peut pas le remplacer.
+        outlets: slots(node)
+          .filter((slot) => text(node.row[slot.field]).trim())
+          .map((slot) => ({
+            ...slot,
+            route: routes.find((r) => r.fromId === node.id && r.edge.field === slot.field),
+          }))
+          .filter((slot) => slot.route?.toId !== node.id)
+          .map(({ route, ...slot }) => ({ ...slot, target: route?.toTitle || '' })),
+      };
+    });
 }
 function newRow(table, capability, { key, name, division, values = {} }) {
   if (!text(name).trim()) throw Error('Donnez un nom à cette étape.');
@@ -602,6 +647,100 @@ export function prepareRouteEdit({ snapshot: input, flow, nodeId, field, destina
       result.summary.notices.push(
         `${removed.length} étape(s) ne seront plus accessibles depuis ce parcours. Leurs lignes sont conservées dans les tables.`,
       );
+    return result;
+  } catch (error) {
+    return fail(error);
+  }
+}
+/**
+ * Retire un bloc du parcours : chaque branche qui y menait reçoit la destination choisie.
+ * La ligne du bloc reste dans sa table ; rien n'est supprimé.
+ */
+export function prepareBlockRemoval({ snapshot: input, flow, nodeId, destination }) {
+  try {
+    const snapshot = normalizeSnapshot(input),
+      live = currentFlow(snapshot, flow),
+      options = designerOptions({ snapshot, flow: live });
+    if (nodeId === live.id)
+      throw Error('L’entrée du parcours ne peut pas être retirée : elle est le parcours lui-même.');
+    const removal = options.removals.find((item) => item.nodeId === nodeId);
+    if (!removal) throw Error('Choisissez le bloc à retirer de ce parcours.');
+    if (removal.blocked) throw Error(removal.blocked);
+    const node = live.nodes.find((n) => n.id === nodeId),
+      notices = [];
+    let type, key;
+    if (destination?.outlet) {
+      const outlet = removal.outlets.find((o) => o.field === destination.outlet);
+      if (!outlet) throw Error('Choisissez une suite renseignée du bloc à retirer.');
+      type = base(node.row[outlet.field]);
+      key = text(node.row[outlet.targetField]).split('|')[0];
+      const audio = live.edges.find((e) => e.from === nodeId && e.field === outlet.field)?.audio;
+      if (
+        text(audio).trim() ||
+        text(node.row[outlet.field]).includes('|') ||
+        text(node.row[outlet.targetField]).includes('|')
+      )
+        notices.push(
+          `Le message et les paramètres de la sortie « ${outlet.label} » du bloc retiré ne sont pas repris.`,
+        );
+    } else if (destination?.nodeId) {
+      if (destination.nodeId === nodeId)
+        throw Error('Choisissez une autre étape que le bloc retiré lui-même.');
+      const target = options.destinations.find((d) => d.nodeId === destination.nodeId);
+      if (!target) throw Error('Choisissez une étape appartenant à ce parcours.');
+      type = target.type;
+      key = target.key;
+    } else if (destination?.type === 'disconnect') {
+      type = 'disconnect';
+      key = '';
+    } else throw Error('Choisissez où envoyer les appels qui arrivaient à ce bloc.');
+    const updatedRows = [...new Set(removal.incoming.map((link) => link.fromId))].map((fromId) => {
+      const parent = live.nodes.find((n) => n.id === fromId),
+        table = snapshot.tables.find((t) => t.id === parent.tableId),
+        row = copy(parent.row);
+      // Seule la destination change : l'annonce, les options et le contexte de la branche restent.
+      for (const link of removal.incoming.filter((item) => item.fromId === fromId)) {
+        row[link.field] = check(table, link.field, replaceBase(row[link.field], type));
+        row[link.targetField] = check(
+          table,
+          link.targetField,
+          replaceBase(row[link.targetField], key),
+        );
+        if (type === parent.type && key === parent.key)
+          notices.push(`« ${link.label} » revient maintenant sur sa propre étape.`);
+      }
+      validateRow(table, row);
+      return { node: parent, row };
+    });
+    const result = projected(snapshot, [], updatedRows, live.id, live.id, notices, 'block-removal');
+    const inventory = buildJourneyInventory(result.snapshot),
+      after = inventory.flows.find((f) => f.id === live.id);
+    if (after.nodes.some((n) => n.id === nodeId))
+      throw Error(
+        'Ce bloc resterait accessible par la destination choisie. Choisissez une autre destination.',
+      );
+    const removed = live.nodes.filter((n) => !after.nodes.some((a) => a.id === n.id)),
+      others = removed.filter((n) => n.id !== nodeId),
+      users = inventory.flows.filter(
+        (f) => f.id !== live.id && f.nodes.some((n) => n.id === nodeId),
+      );
+    result.summary.removed = removed.map((n) => ({
+      nodeId: n.id,
+      title: nodeTitle(n),
+      label: n.label || '',
+      tableName: n.tableName,
+    }));
+    if (others.length)
+      result.summary.notices.push(
+        `${others.length > 1 ? 'Ces étapes n’étaient accessibles' : 'Cette étape n’était accessible'} que par ce bloc et ${others.length > 1 ? 'sortent' : 'sort'} aussi du parcours : ${others.map(nodeTitle).join(', ')}.`,
+      );
+    if (users.length)
+      result.summary.notices.push(
+        `Ce bloc reste utilisé par : ${users.map((f) => f.name || f.key).join(', ')}.`,
+      );
+    result.summary.notices.push(
+      `${removed.length > 1 ? 'Les lignes de ces étapes sont conservées dans leurs tables' : 'La ligne de ce bloc est conservée dans sa table'} : rien n’est supprimé dans Genesys.`,
+    );
     return result;
   } catch (error) {
     return fail(error);

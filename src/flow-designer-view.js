@@ -244,9 +244,30 @@ function routeEditor(form, options) {
         (form.destination?.type ? 'terminal:' + form.destination.type : '');
   return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Modifier la suite d’une branche</h2><p>La destination choisie remplace celle de cette branche.</p></div></div><div class="designer-fields">${selector({ id: 'designer-route', label: 'Étape et branche à raccorder', value: placement?.id || form.placementId, options: list(options.placements).map((p) => ({ value: p.id, label: p.label })), required: true })}${selector({ id: 'designer-destination', label: 'Nouvelle destination', value: destination, options: [...destinations, { value: 'terminal:disconnect', label: options.media === 'messaging' ? 'Terminer la conversation' : 'Terminer l’appel' }, ...(list(options.returnAllowedNodes).includes(placement?.fromId) ? [{ value: 'terminal:next', label: 'Revenir au cycle d’attente' }] : [])], required: true })}</div>${placement ? `<div class="designer-current-route"><small>Destination actuelle</small><strong>${esc(placement.currentTarget || placement.currentType || 'Non renseignée')}</strong></div>` : ''}</section>`;
 }
+/** Retirer un bloc : lequel, et où vont désormais les branches qui y menaient. */
+function removalEditor(form, options) {
+  const removals = list(options.removals),
+    removal = removals.find((r) => r.nodeId === form.removeNodeId),
+    end = options.media === 'messaging' ? 'Terminer la conversation' : 'Terminer l’appel';
+  const destinations = removal
+    ? [
+        ...list(removal.outlets).map((o) => ({
+          value: 'outlet:' + o.field,
+          label: `Suite du bloc · ${o.label}${o.target ? ' → ' + o.target : ''}`,
+        })),
+        ...list(options.destinations)
+          .filter((d) => d.nodeId !== removal.nodeId)
+          .map((d) => ({ value: d.nodeId, label: d.label })),
+        { value: 'terminal:disconnect', label: end },
+      ]
+    : [];
+  const incoming = list(removal?.incoming);
+  return `<section class="designer-section"><div class="designer-section-title">${icon('link')}<div><h2>Retirer un bloc du parcours</h2><p>Les branches qui menaient à ce bloc reçoivent la destination choisie. Sa ligne reste dans sa table : rien n’est supprimé dans Genesys.</p></div></div><div class="designer-fields">${selector({ id: 'designer-remove-node', label: 'Bloc à retirer', value: form.removeNodeId, options: removals.map((r) => ({ value: r.nodeId, label: r.label })), required: true, placeholder: removals.length ? 'Choisir le bloc' : 'Aucun bloc à retirer' })}${removal && !removal.blocked ? selector({ id: 'designer-remove-destination', label: 'Où envoyer ce qui arrivait à ce bloc ?', value: form.removeTo, options: destinations, required: true, placeholder: 'Choisir la nouvelle destination' }) : `<div class="designer-field"><label for="designer-remove-destination">Où envoyer ce qui arrivait à ce bloc ?</label><select id="designer-remove-destination" name="designer-remove-destination" disabled><option value="">${removal ? 'Retrait impossible depuis cet écran' : 'Choisissez d’abord le bloc'}</option></select></div>`}</div>${removal?.blocked ? `<p class="designer-note" role="status">${esc(removal.blocked)}</p>` : ''}${incoming.length && !removal.blocked ? `<div class="designer-current-route"><small>${incoming.length > 1 ? 'Branches raccordées ailleurs' : 'Branche raccordée ailleurs'}</small>${incoming.map((link) => `<strong>${esc(link.label)}</strong>`).join('')}</div>` : ''}</section>`;
+}
 function planReview(plan, mode) {
   const created = list(plan?.createdRows),
     updated = list(plan?.updatedRows),
+    removed = list(plan?.summary?.removed),
     notices = list(plan?.summary?.notices);
   const rowCards = created.map((entry) => ({
     kind: 'Nouvelle étape',
@@ -268,7 +289,7 @@ function planReview(plan, mode) {
       before,
     });
   }
-  return `<section class="designer-review"><div class="designer-section-title">${icon('circlecheck')}<div><h2>${mode === 'create' ? 'Votre nouveau parcours' : 'Vérifier les changements'}</h2><p>${created.length} étape(s) créée(s) · ${updated.length} étape(s) mise(s) à jour</p></div></div>${rowCards.map((row) => `<article class="designer-review-card"><header><span>${esc(row.kind)}</span><h3>${esc(row.title)}</h3>${row.table ? `<small>${esc(row.table)}</small>` : ''}</header><dl>${row.fields.map(([key, value]) => `<div><dt>${esc(fieldLabel(key))}</dt><dd>${row.before ? `<span class="designer-before">${esc(text(row.before[key]))}</span>${icon('chevron')}` : ''}<strong>${esc(text(value))}</strong></dd></div>`).join('')}</dl></article>`).join('')}${notices.map((n) => notice(esc(errorText(n)), 'warning')).join('')}<p class="designer-note">Les changements sont préparés dans le parcours. Leur publication dans Genesys se fait depuis « Mes changements ».</p></section>`;
+  return `<section class="designer-review"><div class="designer-section-title">${icon('circlecheck')}<div><h2>${mode === 'create' ? 'Votre nouveau parcours' : 'Vérifier les changements'}</h2><p>${created.length} étape(s) créée(s) · ${updated.length} étape(s) mise(s) à jour${removed.length ? ` · ${removed.length} étape(s) retirée(s)` : ''}</p></div></div>${removed.map((step) => `<article class="designer-review-card"><header><span>Retiré du parcours</span><h3>${esc(step.title)}</h3>${step.tableName ? `<small>${esc(step.tableName)}</small>` : ''}</header></article>`).join('')}${rowCards.map((row) => `<article class="designer-review-card"><header><span>${esc(row.kind)}</span><h3>${esc(row.title)}</h3>${row.table ? `<small>${esc(row.table)}</small>` : ''}</header><dl>${row.fields.map(([key, value]) => `<div><dt>${esc(fieldLabel(key))}</dt><dd>${row.before ? `<span class="designer-before">${esc(text(row.before[key]))}</span>${icon('chevron')}` : ''}<strong>${esc(text(value))}</strong></dd></div>`).join('')}</dl></article>`).join('')}${notices.map((n) => notice(esc(errorText(n)), 'warning')).join('')}<p class="designer-note">Les changements sont préparés dans le parcours. Leur publication dans Genesys se fait depuis « Mes changements ».</p></section>`;
 }
 
 /** Pure HTML: caller owns form state, engine plans and publication. */
@@ -299,31 +320,40 @@ export function designerView({
       ? 'Créer un parcours'
       : mode === 'connect'
         ? 'Raccorder les étapes'
-        : 'Ajouter un bloc';
+        : mode === 'remove'
+          ? 'Retirer un bloc'
+          : 'Ajouter un bloc';
   const errors = [error, ...list(plan?.errors)].map(errorText).filter(Boolean),
-    available = mode === 'connect' || Boolean(entry && entry.available !== false);
+    removal = list(options.removals).find((r) => r.nodeId === form.removeNodeId),
+    available =
+      mode === 'connect' ||
+      (mode === 'remove'
+        ? Boolean(removal && !removal.blocked)
+        : Boolean(entry && entry.available !== false));
   const body =
     review && plan?.ok
       ? planReview(plan, mode)
       : mode === 'connect'
         ? routeEditor(form, options)
-        : available
-          ? identity(mode, entry, form, catalogue, { resourceStates, connected }) +
-            (mode === 'insert'
-              ? insertion(entry, form, options)
-              : '<div class="designer-start"><span>' +
-                icon('phone') +
-                ' Entrée du parcours</span>' +
-                icon('chevron') +
-                (form.media === 'messaging'
-                  ? '<span>Fin de conversation</span><p>Ajoutez ensuite vos blocs. Le raccordement du site à Web Messenger reste à configurer dans Genesys.</p></div>'
-                  : '<span>Fin d’appel</span><p>Ajoutez ensuite vos blocs. La création du parcours ne provisionne pas le numéro téléphonique dans Genesys.</p></div>')) +
-            schemaFields(entry, form, {
-              create: mode === 'create',
-              resourceStates,
-              connected,
-              participantData: options.participantData,
-            })
-          : `<div class="designer-placeholder">${icon('layers')}<h2>${mode === 'insert' ? 'Choisissez un bloc pour commencer' : 'Table d’entrée indisponible'}</h2><p>${esc(entry?.reason || (mode === 'insert' ? 'La bibliothèque affiche les types V5 disponibles dans votre organisation.' : form.media === 'messaging' ? 'La table W_INBOUND_MESSAGE_v1 et son schéma doivent être accessibles.' : 'La table W_INBOUND_CALL_v5 et son schéma doivent être accessibles.'))}</p></div>`;
-  return `${head(form.media === 'messaging' ? 'DESIGNER MESSAGING' : 'DESIGNER WOLF V5', title, mode === 'create' ? (form.media === 'messaging' ? 'Web Messaging · parcours indépendant de ses points d’entrée.' : 'Construisez un parcours à partir de son numéro d’entrée.') : flow?.name || flow?.key || 'Le parcours', btn(icon('close') + ' Fermer', 'designer-cancel', 'secondary'))}<section class="flow-designer"><ol class="designer-progress" aria-label="Étapes de préparation"><li class="${!review ? 'active' : ''}"><span>1</span>${mode === 'create' ? 'Définir le parcours' : 'Configurer le changement'}</li><li class="${review ? 'active' : ''}"><span>2</span>Vérifier et ajouter</li></ol>${errors.length ? `<div class="designer-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div></div>` : ''}<div class="designer-workspace ${mode === 'insert' && !review ? 'has-palette' : ''}">${mode === 'insert' && !review ? palette(catalogue, form) : ''}<div class="designer-main">${body}</div></div><footer class="designer-footer"><div>${icon(review ? 'shield' : 'layers')}<span>${review ? 'Le parcours sera modifiable avant publication.' : 'Préparez les étapes et leurs raccordements.'}</span></div><div>${review ? btn('Modifier les choix', 'designer-edit', 'secondary') : btn('Annuler', 'designer-cancel', 'quiet')}${review ? btn(mode === 'create' ? 'Créer le parcours' : 'Appliquer au parcours', 'designer-apply', 'primary', !plan?.ok || errors.length ? 'disabled' : '') : btn('Vérifier le résultat', 'designer-review', 'primary', !available ? 'disabled' : '')}</div></footer></section>`;
+        : mode === 'remove'
+          ? removalEditor(form, options)
+          : available
+            ? identity(mode, entry, form, catalogue, { resourceStates, connected }) +
+              (mode === 'insert'
+                ? insertion(entry, form, options)
+                : '<div class="designer-start"><span>' +
+                  icon('phone') +
+                  ' Entrée du parcours</span>' +
+                  icon('chevron') +
+                  (form.media === 'messaging'
+                    ? '<span>Fin de conversation</span><p>Ajoutez ensuite vos blocs. Le raccordement du site à Web Messenger reste à configurer dans Genesys.</p></div>'
+                    : '<span>Fin d’appel</span><p>Ajoutez ensuite vos blocs. La création du parcours ne provisionne pas le numéro téléphonique dans Genesys.</p></div>')) +
+              schemaFields(entry, form, {
+                create: mode === 'create',
+                resourceStates,
+                connected,
+                participantData: options.participantData,
+              })
+            : `<div class="designer-placeholder">${icon('layers')}<h2>${mode === 'insert' ? 'Choisissez un bloc pour commencer' : 'Table d’entrée indisponible'}</h2><p>${esc(entry?.reason || (mode === 'insert' ? 'La bibliothèque affiche les types V5 disponibles dans votre organisation.' : form.media === 'messaging' ? 'La table W_INBOUND_MESSAGE_v1 et son schéma doivent être accessibles.' : 'La table W_INBOUND_CALL_v5 et son schéma doivent être accessibles.'))}</p></div>`;
+  return `${head(form.media === 'messaging' ? 'DESIGNER MESSAGING' : 'DESIGNER WOLF V5', title, mode === 'create' ? (form.media === 'messaging' ? 'Web Messaging · parcours indépendant de ses points d’entrée.' : 'Construisez un parcours à partir de son numéro d’entrée.') : flow?.name || flow?.key || 'Le parcours', btn(icon('close') + ' Fermer', 'designer-cancel', 'secondary'))}<section class="flow-designer"><ol class="designer-progress" aria-label="Étapes de préparation"><li class="${!review ? 'active' : ''}"><span>1</span>${mode === 'create' ? 'Définir le parcours' : 'Configurer le changement'}</li><li class="${review ? 'active' : ''}"><span>2</span>${mode === 'remove' ? 'Vérifier et retirer' : 'Vérifier et ajouter'}</li></ol>${errors.length ? `<div class="designer-errors" role="alert">${icon('alert')}<div><strong>Quelques points restent à préciser</strong><ul>${[...new Set(errors)].map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div></div>` : ''}<div class="designer-workspace ${mode === 'insert' && !review ? 'has-palette' : ''}">${mode === 'insert' && !review ? palette(catalogue, form) : ''}<div class="designer-main">${body}</div></div><footer class="designer-footer"><div>${icon(review ? 'shield' : 'layers')}<span>${review ? 'Le parcours sera modifiable avant publication.' : 'Préparez les étapes et leurs raccordements.'}</span></div><div>${review ? btn('Modifier les choix', 'designer-edit', 'secondary') : btn('Annuler', 'designer-cancel', 'quiet')}${review ? btn(mode === 'create' ? 'Créer le parcours' : 'Appliquer au parcours', 'designer-apply', 'primary', !plan?.ok || errors.length ? 'disabled' : '') : btn('Vérifier le résultat', 'designer-review', 'primary', !available ? 'disabled' : '')}</div></footer></section>`;
 }

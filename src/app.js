@@ -67,6 +67,7 @@ import {
   prepareNewFlow,
   prepareNewBlock,
   prepareRouteEdit,
+  prepareBlockRemoval,
 } from './flow-designer.js';
 import { designerView } from './flow-designer-view.js';
 import { applyDesignerDraft } from './designer-draft.js';
@@ -1442,7 +1443,7 @@ function flowPage() {
   return `<header class="studio-header"><div class="studio-heading-group">${btn(icon('undo'), isReference ? 'open-model' : 'nav', 'quiet studio-back', back + ' aria-label="Revenir aux parcours" title="Revenir aux parcours"')}<div class="studio-heading"><div class="studio-kicker">${isReference ? 'CORE MODEL' : r.role === 'declination' ? 'PARCOURS D’ENTITÉ' : f.media === 'messaging' ? 'PARCOURS MESSAGING' : 'PARCOURS VOIX'}<span>${ui.audience === 'admin' ? 'VUE ADMINISTRATION' : 'VUE MÉTIER'}</span></div><h1 title="${esc(displayTitle(f))}">${esc(displayTitle(f))}</h1><div class="studio-meta">${esc([humanText(f.division) || 'Entité non renseignée', f.media === 'messaging' ? 'Segment : ' + f.key : /^\+?\d[\d ]+$/.test(f.key) ? f.key : null].filter(Boolean).join(' · '))}</div></div></div><div class="page-actions">${f.media === 'messaging' ? '' : `${btn(icon('database') + ' Données du parcours', 'flow-data-open', 'secondary small')}${btn(icon('play') + ' Simuler un appel', 'simulation-open', 'secondary small')}${btn(icon('diff') + ' Avant / après l’appel', 'call-compare-open', 'secondary small')}${ui.liveActivity?.enabled ? liveActivityToggle(true) : ''}`}<details class="action-menu"><summary class="btn secondary small">Plus d’actions ${icon('down')}</summary><div class="action-menu-list">${btn(icon('shield') + ' Contrôler la configuration', 'quality-open', 'quiet small')}${btn(icon('layers') + ' Comparer avec un autre parcours', 'compare-flow', 'quiet small', `data-index="${ui.flow}"`)}${f.media === 'messaging' || ui.liveActivity?.enabled ? '' : liveActivityToggle(false)}${f.media === 'messaging' ? '' : btn(icon('phone') + ' Activité du numéro', 'open-activity', 'quiet small', `data-index="${ui.flow}"`)}</div></details>${isReference ? btn(icon('copy') + ' Créer un parcours', 'clone-start', 'primary small') : btn(icon('copy') + ' Reprendre depuis…', 'copy-start', 'primary small')}</div></header>
  <div class="studio-context"><div class="studio-reference">${studioReference(f, r)}</div>${audienceSwitch()}<div class="studio-context-actions">${draftCount ? tag(plural(draftCount, 'étape') + ' en brouillon', 'amber') : ''}${missing ? tag(plural(missing, 'destination') + ' à vérifier', 'amber', 'alert') : ''}${r.role === 'declination' ? btn('Voir l’impact', 'impact-open', 'quiet small', `data-id="${esc(f.id)}"`) : ''}${ui.audience === 'admin' ? btn(r.role === 'none' ? 'Définir la référence' : 'Gérer la référence', 'declare-start', 'quiet small', `data-id="${esc(f.id)}"`) : ''}</div></div>
  ${f.media === 'messaging' ? messagingEntryDetails(f) : ''}
- ${ui.audience === 'admin' ? `<div class="designer-launchbar"><div><strong>Structure du parcours</strong><span>Ajout d’un bloc ou modification d’une liaison.</span></div><div>${btn('+ Ajouter un bloc', 'designer-insert', 'primary small')}${btn(icon('link') + ' Raccorder les étapes', 'designer-connect', 'secondary small')}</div></div>` : ''}
+ ${ui.audience === 'admin' ? `<div class="designer-launchbar"><div><strong>Structure du parcours</strong><span>Ajout ou retrait d’un bloc, modification d’une liaison.</span></div><div>${btn('+ Ajouter un bloc', 'designer-insert', 'primary small')}${btn(icon('link') + ' Raccorder les étapes', 'designer-connect', 'secondary small')}${btn(icon('close') + ' Retirer un bloc', 'designer-remove', 'secondary small')}</div></div>` : ''}
  ${ui.liveActivity?.enabled ? `<div class="live-map-workspace">${liveActivityView(ui.liveActivity)}</div>` : journeyWorkspace(f)}`;
 }
 function centerStep(force = true) {
@@ -2831,6 +2832,9 @@ function openDesigner(mode) {
       field: placement?.field || '',
       continuationField: '',
       destination: null,
+      // Le bloc ouvert dans le parcours est proposé d'emblée, s'il peut être retiré.
+      removeNodeId: options.removals?.some((r) => r.nodeId === selected?.id) ? selected.id : '',
+      removeTo: '',
     },
     plan: null,
     review: false,
@@ -2840,8 +2844,11 @@ function openDesigner(mode) {
 }
 function captureDesignerForm() {
   if (!ui.designer || ui.designer.review) return;
-  const form = ui.designer.form;
+  const form = ui.designer.form,
+    removing = form.removeNodeId;
   for (const [id, key] of Object.entries({
+    'designer-remove-node': 'removeNodeId',
+    'designer-remove-destination': 'removeTo',
     'designer-name': 'name',
     'designer-phone': 'phone',
     'designer-division': 'division',
@@ -2851,6 +2858,8 @@ function captureDesignerForm() {
     'designer-continuation': 'continuationField',
   }))
     if ($('#' + id)) form[key] = $('#' + id).value;
+  // Les suites proposées sont celles du bloc choisi : en changer efface la destination.
+  if (form.removeNodeId !== removing) form.removeTo = '';
   const route = $('#designer-route');
   if (route) {
     form.placementId = route.value;
@@ -2921,7 +2930,31 @@ function makeDesignerPlan() {
     ? prepareNewFlow({ snapshot, ...form })
     : mode === 'insert'
       ? prepareNewBlock({ snapshot, flow, ...form })
-      : prepareRouteEdit({ snapshot, flow, ...form });
+      : mode === 'remove'
+        ? removalPlan(snapshot, flow, form)
+        : prepareRouteEdit({ snapshot, flow, ...form });
+}
+function removalPlan(snapshot, flow, form) {
+  const to = form.removeTo || '';
+  const plan = prepareBlockRemoval({
+    snapshot,
+    flow,
+    nodeId: form.removeNodeId,
+    destination: to.startsWith('outlet:')
+      ? { outlet: to.slice(7) }
+      : to.startsWith('terminal:')
+        ? { type: to.slice(9) }
+        : to
+          ? { nodeId: to }
+          : null,
+  });
+  // Un bloc ajouté dans cette session n'existe pas encore dans Genesys : le dire avant de le retirer.
+  for (const step of plan.summary?.removed || [])
+    if (ui.blockCreations.has(step.nodeId))
+      plan.summary.notices.push(
+        `« ${step.title} » a été ajouté dans cette session : il sera tout de même créé dans Genesys à la publication, sans être utilisé par ce parcours.`,
+      );
+  return plan;
 }
 function applyDesign() {
   if (!ui.designer?.review) throw Error('Vérifiez le résultat avant de modifier le parcours.');
@@ -2963,7 +2996,9 @@ function applyDesign() {
       ? 'Parcours créé dans le designer : ' + form.name
       : mode === 'insert'
         ? 'Bloc ajouté dans le designer : ' + form.name
-        : 'Raccordement du parcours modifié',
+        : mode === 'remove'
+          ? 'Bloc retiré du parcours : ' + (plan.summary.removed[0]?.title || '')
+          : 'Raccordement du parcours modifié',
   );
   ui.designer = null;
   ui.audience = 'admin';
@@ -3593,6 +3628,9 @@ async function action(name, el) {
       break;
     case 'designer-connect':
       openDesigner('connect');
+      break;
+    case 'designer-remove':
+      openDesigner('remove');
       break;
     case 'designer-cancel': {
       const back = ui.designer?.returnView || 'catalogue';
@@ -5051,6 +5089,8 @@ document.addEventListener('change', (event) => {
       'designer-continuation',
       'designer-route',
       'designer-destination',
+      'designer-remove-node',
+      'designer-remove-destination',
     ].includes(event.target.id) ||
     event.target.dataset.valueType === 'skills'
   )
