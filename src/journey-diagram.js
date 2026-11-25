@@ -7,6 +7,7 @@ import { layoutAttributes } from './view-layout.js';
  * demandé au premier affichage d'un parcours, gardé en mémoire, puis annoncé aux abonnés.
  */
 import { journeyModel, edgeCaption, titleLineCount, roundedRoute } from './journey-canvas.js';
+import { blockPresentation } from './control-blocks.js';
 import { branchRank } from './business.js';
 import { audienceNodeTitle, audienceNodeSubtitle } from './journey-audience.js';
 import { esc, icon, plural } from './ui-kit.js';
@@ -71,7 +72,7 @@ function lineCount(text, font, available, estimate) {
 
 /** Ce qui est rattaché à l'étape sans être une suite de l'appel : file, menus d'attente, informations. */
 function attachedFacts(node) {
-  const parts = [];
+  const parts = [...(node.notes || [])];
   if (node.attachments.queues.length) parts.push('File associée');
   const menus = new Set(
     node.attachments.waitingMenus.map(
@@ -97,8 +98,8 @@ function attachedFacts(node) {
  */
 function cardOf(node, flow, model) {
   const source = flow.nodes[node.index];
-  const title = audienceNodeTitle(source, 'business'),
-    key = audienceNodeTitle(source, 'admin');
+  const title = node.block ? node.title : audienceNodeTitle(source, 'business'),
+    key = node.block ? node.block.name : audienceNodeTitle(source, 'admin');
   const exits = model.edges
     .filter((edge) => edge.from === node.id)
     .map((edge, order) => {
@@ -110,7 +111,13 @@ function cardOf(node, flow, model) {
         order,
         rank: Math.min(...edge.routes.map((route) => branchRank(route.edge.branch))),
         to: target.terminal ? '' : target.id,
-        destination: target.terminal ? target.title : '',
+        // Une réponse à un menu de consentement dit ce qu'elle décide, puis où va l'appel.
+        destination: [
+          edge.routes.map((route) => route.outcome).find(Boolean),
+          target.terminal ? target.title : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
         unresolved: Boolean(target.terminal && target.unresolved),
       };
     })
@@ -118,7 +125,7 @@ function cardOf(node, flow, model) {
     .map((exit) => ({
       ...exit,
       height:
-        !exit.to &&
+        exit.destination &&
         textWidth(exit.label, EXIT_FONT) + textWidth(exit.destination, TEXT_FONT) + 26 > TEXT_WIDTH
           ? TALL_EXIT_HEIGHT
           : EXIT_HEIGHT,
@@ -150,11 +157,13 @@ function cardOf(node, flow, model) {
   return {
     id: node.id,
     index: node.index,
+    mergedIndex: node.mergedIndex ?? -1,
     kind: node.kind,
     icon: node.icon,
     entry: node.entry,
     typeLabel: node.typeLabel,
-    technicalType: audienceNodeSubtitle(source, 'admin'),
+    technicalType: node.block ? 'Contrôle WOLF' : audienceNodeSubtitle(source, 'admin'),
+    action: node.block ? blockPresentation(node.block).action : 'select-node',
     title,
     titleLines,
     reference,
@@ -174,8 +183,8 @@ function cardOf(node, flow, model) {
 }
 
 /** Cartes, sorties et liens d'un parcours, sans coordonnées. Ne modifie jamais son entrée. */
-export function diagramModel(flow, { allLinks = false } = {}) {
-  const model = journeyModel(flow, { allLinks });
+export function diagramModel(flow, { allLinks = false, contextData = null } = {}) {
+  const model = journeyModel(flow, { allLinks, recording: true, contextData });
   const nodes = model.nodes
     .filter((node) => !node.terminal)
     .map((node) => cardOf(node, flow, model));
@@ -420,10 +429,10 @@ function cardHtml(card, selected) {
   const exits = card.exits
     .map(
       (exit) =>
-        `<span class="diagram-exit${exit.to ? '' : ' inline'}${exit.height > EXIT_HEIGHT ? ' tall' : ''}${exit.unresolved ? ' unresolved' : ''}"><span class="diagram-exit-label" title="${esc(exit.labels.join(' · '))}">${esc(exit.label)}</span>${exit.to ? '<i class="diagram-port"></i>' : `<span class="diagram-exit-end" title="${esc(exit.destination)}">${esc(exit.destination)}</span>`}</span>`,
+        `<span class="diagram-exit${exit.to ? '' : ' inline'}${exit.height > EXIT_HEIGHT ? ' tall' : ''}${exit.unresolved ? ' unresolved' : ''}"><span class="diagram-exit-label" title="${esc(exit.labels.join(' · '))}">${esc(exit.label)}</span>${exit.destination ? `<span class="diagram-exit-end" title="${esc(exit.destination)}">${esc(exit.destination)}</span>` : ''}${exit.to ? '<i class="diagram-port"></i>' : ''}</span>`,
     )
     .join('');
-  return `<button type="button" class="diagram-card${selected ? ' selected' : ''}" data-kind="${esc(card.kind)}" data-card="${esc(card.id)}" ${layoutAttributes({ left: card.x, top: card.y, width: card.width, height: card.height })} data-action="select-node" data-node="${card.index}" aria-label="Ouvrir ${esc(card.title)}" aria-pressed="${selected}">
+  return `<button type="button" class="diagram-card${selected ? ' selected' : ''}" data-kind="${esc(card.kind)}" data-card="${esc(card.id)}" ${layoutAttributes({ left: card.x, top: card.y, width: card.width, height: card.height })} data-action="${card.action}"${card.index >= 0 ? ` data-node="${card.index}"` : ''} aria-label="Ouvrir ${esc(card.title)}" aria-pressed="${selected}">
       <span class="diagram-card-top" ${layoutAttributes({ height: card.top })}><span class="diagram-card-head"><span class="diagram-card-icon">${icon(card.icon)}</span><span class="diagram-card-copy"><small title="${esc(card.technicalType || card.typeLabel)}">${esc(card.typeLabel)}</small><strong title="${esc(card.title)}" ${layoutAttributes({ maxHeight: card.titleLines * TITLE_LINE, lineClamp: card.titleLines })}>${esc(card.title)}</strong></span></span>${card.reference ? `<span class="diagram-card-reference" title="${esc(card.technicalType)}">${esc(card.reference)}</span>` : ''}${card.preview ? `<span class="diagram-card-preview" title="${esc(card.previewLabel + ' : ' + card.preview)}" ${layoutAttributes({ maxHeight: card.previewLines * TEXT_LINE, lineClamp: card.previewLines })}>${esc(card.preview)}</span>` : ''}${card.facts ? `<span class="diagram-card-facts">${esc(card.facts)}</span>` : ''}</span>
       ${exits ? `<span class="diagram-exits">${exits}</span>` : ''}
     </button>`;
@@ -433,6 +442,8 @@ export function journeyDiagram(
   flow,
   {
     selectedIndex = null,
+    selectedKind = '',
+    selectedCard = '',
     zoom = 1,
     allLinks = false,
     layout = diagramLayout(flow, { allLinks }),
@@ -445,7 +456,15 @@ export function journeyDiagram(
   if (!layout.ready)
     return viewport('<p class="canvas-status" role="status">Mise en page du diagramme…</p>');
   const scale = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
-  const selected = layout.nodes.find((card) => card.index === selectedIndex)?.id;
+  // Un bloc sans ligne propre (données de contexte) se désigne par sa nature, pas par un indice d'étape.
+  const selected = layout.nodes.find((card) =>
+    selectedCard
+      ? card.id === selectedCard
+      : selectedKind
+        ? card.kind === selectedKind && card.index < 0
+        : card.index === selectedIndex ||
+          (selectedIndex != null && selectedIndex >= 0 && card.mergedIndex === selectedIndex),
+  )?.id;
   const lit = (link) => Boolean(selected) && (link.from === selected || link.to === selected);
   const marker = (id, colour) =>
     `<marker id="${id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 .6 7 4 0 7.4Z" fill="${colour}"/></marker>`;

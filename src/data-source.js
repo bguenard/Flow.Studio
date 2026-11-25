@@ -1,4 +1,5 @@
 import { buildMessagingFlows } from './messaging-inventory.js';
+import { recordingCallFields, recordingSetting } from './route-controls.js';
 /**
  * Read-only WOLF sources. No Genesys secret or write request belongs in this module.
  * Imported values remain unchanged: in particular CSV cells stay strings.
@@ -71,6 +72,7 @@ const TYPE_LABELS = {
   bot: 'Bot vocal',
   transfercallflow: 'Transfert de parcours',
   pdata: 'Attributs métier',
+  recording: 'Enregistrement',
   callback: 'Rappel',
   disconnect: 'Fin d’appel',
   number: 'Transfert vers un numéro',
@@ -303,6 +305,25 @@ function targetParts(rawType, rawTarget) {
 }
 function rowReferences(row, type) {
   if (type === 'pdata') return [];
+  // Le réglage d'enregistrement n'a pas de suite : seulement son menu de consentement.
+  if (type === 'recording')
+    return nonempty(row.CONSENT_MENU)
+      ? [
+          {
+            ...targetParts('menu', ''),
+            target: text(row.CONSENT_MENU),
+            rawTarget: text(row.CONSENT_MENU),
+            field: 'CONSENT_MENU',
+            destinationField: 'CONSENT_MENU',
+            audio: '',
+            branch: 'CONSENT_MENU',
+            label: 'Menu de consentement',
+            phase: 'recording',
+            conditional: true,
+            condition: 'Consentement demandé avant l’enregistrement',
+          },
+        ]
+      : [];
   const references = Object.keys(row)
     .filter((field) => /(^|_)TARGET_TYPE(?:_\d+)?$/.test(field) && nonempty(row[field]))
     .map((field) => {
@@ -517,6 +538,28 @@ export function buildVoiceInventory(input) {
           schedules.push(node);
         if (type === 'menu') menus.push(node);
         if (type === 'pdata') participantData.push(node);
+        // L'enregistrement est un réglage rattaché à l'étape qui l'appelle, pas une suite de l'appel.
+        if (version === '5' && !['pdata', 'recording'].includes(type)) {
+          const fields = recordingCallFields(row),
+            setting = fields.length ? recordingSetting(snapshot, text(entry.DIVISION)) : null;
+          const to = setting?.row
+            ? visit(setting.table, setting.row, 'recording', depth + 1)
+            : null;
+          if (to && visited.has(to))
+            for (const field of fields)
+              edges.push({
+                from: id,
+                to,
+                type: 'recording',
+                target: text(setting.row.key),
+                relationship: 'context',
+                label: 'Enregistrement de l’appel',
+                field,
+                destinationField: field,
+                rawTarget: text(row[field]),
+                resolved: true,
+              });
+        }
         for (const ref of rowReferences(row, type)) {
           const edge = { from: id, to: null, ...ref, relationship: 'route', resolved: false };
           edges.push(edge);

@@ -84,6 +84,7 @@ export function audienceNodeTitle(node, audience = 'business') {
     return (
       text(node?.key || node?.row?.key || node?.name || node?.row?.DESCRIPTION) || nodeTitle(node)
     );
+  if (canonical(node?.type) === 'recording') return nodeTitle(node);
   for (const candidate of [node?.row?.DESCRIPTION, node?.name, node?.key, node?.row?.key]) {
     const title = businessTitle(candidate, node);
     if (title) return title;

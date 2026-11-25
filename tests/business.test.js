@@ -86,7 +86,7 @@ test('audio text, resources and booleans are readable without exposing source sy
 test('changed destination types read as business roles with their controls and language', () => {
   assert.equal(
     describeValue('NEXT_TARGET_TYPE', 'DECISION|sub:INFO_ROUTAGE;RECORDING'),
-    'Règle d’orientation · Contrôles : Info Routage · Enregistrement de l’appel',
+    'Règle d’orientation · Contrôles : Données de contexte · Enregistrement de l’appel',
   );
   assert.equal(
     describeValue('TARGET_TYPE_2', 'SERVICE|LANG:en-gb|SUB:CHECK_AGENT|status:IDLE'),

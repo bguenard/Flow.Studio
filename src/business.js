@@ -8,6 +8,7 @@ import {
 } from './decision-fields.js';
 import { resourceForField } from './genesys-resources.js';
 import { fieldLabel, isCopyableField, isIdentityField } from './draft-fields.js';
+import { controlLabel } from './route-controls.js';
 
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
 const text = (value) => (value === undefined || value === null ? '' : String(value));
@@ -27,6 +28,7 @@ const TYPE_TITLES = new Map(
     decision: 'Règle d’orientation',
     ratiodistrib: 'Répartition des appels',
     pdata: 'Contexte client',
+    recording: 'Enregistrement des appels',
     bot: 'Assistant vocal',
     transfercallflow: 'Transfert vers un autre parcours',
     callback: 'Rappel',
@@ -55,6 +57,7 @@ const SECTIONS = new Map(
     transfercallflow: 'orientation',
     service: 'equipes',
     pdata: 'contexte',
+    recording: 'accueil',
     inqueue: 'attente',
     next: 'attente',
   }),
@@ -155,28 +158,13 @@ const canonicalType = (type) => {
 };
 const isControlsField = (key) =>
   key === 'SUBROUTINES_LIST' || /^INQUEUE_SUBROUTINES_LIST_[1-4]$/.test(key);
-const CONTROL_LABELS = new Map(
-  Object.entries({
-    CHECK_AGENT: 'Disponibilité des conseillers',
-    CHECK_AGENT_LOGGED: 'Conseillers connectés',
-    CHECK_INTERACTION: 'Charge des équipes',
-    CHECK_INTERACTION_NB: 'Volume des interactions',
-    CHECK_EWT: 'Temps d’attente estimé',
-    CHECK_PIQ: 'Position dans la file',
-    CHECK_EWT_PIQ: 'Position et temps d’attente',
-    RECORDING: 'Enregistrement de l’appel',
-    CHECK_RECORDING: 'Enregistrement de l’appel',
-    CHECK_CUSTOMER: 'Contexte du client',
-    CHECK_CUSTOMER_HOME: 'Contexte du client',
-  }),
-);
 function describeControls(value) {
   return (
     text(value)
       .split(';')
       .map((part) => part.trim())
       .filter(Boolean)
-      .map((name) => CONTROL_LABELS.get(name.toUpperCase()) || humanText(name))
+      .map((name) => controlLabel(name) || humanText(name))
       .join(' · ') || 'Aucun contrôle'
   );
 }
@@ -270,6 +258,9 @@ export function nodeTitle(node) {
   if (!node) return 'Étape du parcours';
   const type = canonicalType(node.type);
   const description = node.row?.DESCRIPTION;
+  // La clé d'un réglage d'enregistrement est une division : seule, elle ne dit pas ce qu'est le bloc.
+  if (type === 'recording')
+    return `${TYPE_TITLES.get(type)} · ${text(node.key) === 'Home' ? 'réglage par défaut' : humanText(node.key)}`;
   return (
     humanText(nonempty(description) ? description : node.name || node.key) ||
     TYPE_TITLES.get(type) ||
@@ -509,7 +500,8 @@ export function businessFields(node) {
 }
 
 export function branchLabel(edge) {
-  if (edge?.relationship === 'context') return 'Contexte transmis';
+  if (edge?.relationship === 'context')
+    return edge.type === 'recording' ? 'Enregistrement de l’appel' : 'Contexte transmis';
   let branch = text(edge?.branch).toUpperCase();
   if (!branch && edge?.field)
     branch = text(edge.field)

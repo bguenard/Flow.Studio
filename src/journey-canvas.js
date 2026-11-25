@@ -1,6 +1,12 @@
 import { MESSAGE_LABELS } from './media-profiles.js';
 import { nodeTitle, flowRoutes, businessFields } from './business.js';
 import { journeySteps } from './journey-navigation.js';
+import {
+  inlineControlBlocks,
+  contextSummary,
+  blockPresentation,
+  CUSTOM_BLOCK_NOTE,
+} from './control-blocks.js';
 import { audienceNodeTitle } from './journey-audience.js';
 
 const CARD_WIDTH = 280,
@@ -28,6 +34,7 @@ const KIND_ICONS = {
   service: 'people',
   decision: 'diff',
   pdata: 'building',
+  recording: 'mic',
   bot: 'message',
   callback: 'phone',
   queue: 'people',
@@ -44,7 +51,9 @@ const NO_DESTINATION_TYPES = new Set(['disconnect', 'next', 'enable', 'disable']
 const attachedQueue = (route) => route.edge.derivedFrom === 'QUEUE';
 const attachedMenu = (route) =>
   /^INQUEUE_(?:MENU_[1-4]|REPEAT_MENU|MENU_REPEAT)$/.test(route.edge.field || '');
-const attachedRoute = (route) => attachedQueue(route) || attachedMenu(route);
+// L'enregistrement est un réglage rattaché à l'étape qui l'appelle, pas une suite de l'appel.
+const attachedRecording = (route) =>
+  route.relationship === 'context' && route.edge.type === 'recording';
 
 function previewOf(node) {
   const callback = node.type === 'callback';
@@ -235,24 +244,60 @@ export function roundedRoute(points, radius = 10) {
 }
 
 /** Inventaire du parcours avant toute géométrie : ses étapes visibles, leurs destinations et les liens regroupés. Ne modifie jamais son entrée. */
-export function journeyModel(flow, { allLinks = false } = {}) {
-  const steps = journeySteps(flow),
-    realNodes = new Map((flow?.nodes || []).map((node) => [node.id, node]));
-  const routes = flowRoutes(flow)
-    .filter((route) => route.relationship !== 'context')
+export function journeyModel(
+  flow,
+  { allLinks = false, recording = false, contextData = null } = {},
+) {
+  // Le diagramme d'administration dessine le bloc d'enregistrement ; les autres cartes le replient.
+  const foldedRecording = (route) => !recording && attachedRecording(route),
+    attachedRoute = (route) =>
+      attachedQueue(route) || attachedMenu(route) || foldedRecording(route);
+  const realNodes = new Map((flow?.nodes || []).map((node) => [node.id, node]));
+  const listed = flowRoutes(flow)
+    .filter((route) => route.relationship !== 'context' || attachedRecording(route))
     .map((route) =>
       !NO_DESTINATION_TYPES.has(String(route.edge.type || '').toLowerCase()) &&
       dynamicValue(route.edge.target)
         ? { ...route, dynamic: true, toTitle: 'Destination déterminée pendant l’appel' }
         : route,
     );
+  // Dessinés, les données de contexte et l'enregistrement se lisent dans l'ordre de l'appel.
+  const { routes, copies, blocks, merged, hidden } = recording
+    ? inlineControlBlocks(flow, listed)
+    : {
+        routes: listed,
+        copies: new Map(),
+        blocks: new Map(),
+        merged: new Map(),
+        hidden: new Set(),
+      };
+  const source = (id) => realNodes.get(copies.get(id) || id),
+    known = (id) => Boolean(source(id)) || blocks.has(id),
+    listedSteps = journeySteps(flow),
+    steps = [
+      ...listedSteps,
+      ...[...copies].map(([id, real]) => ({
+        ...listedSteps.find((step) => step.id === real),
+        id,
+      })),
+      ...[...blocks].map(([id, block]) => ({
+        id,
+        index: -1,
+        block,
+        entry: false,
+        contextOnly: false,
+        incoming: [],
+        outgoing: [],
+        contexts: [],
+      })),
+    ];
   const primaryRoutes = routes.filter((route) => !attachedRoute(route));
   const reachable = (starts, links) => {
     const seen = new Set(),
       queue = [...starts];
     while (queue.length) {
       const id = queue.shift();
-      if (!realNodes.has(id) || seen.has(id)) continue;
+      if (!known(id) || seen.has(id)) continue;
       seen.add(id);
       for (const route of links) if (route.fromId === id && route.toId) queue.push(route.toId);
     }
@@ -262,7 +307,7 @@ export function journeyModel(flow, { allLinks = false } = {}) {
   const mainReachable = reachable(entry ? [entry] : [], primaryRoutes);
   const waitingReachable = reachable(
     routes
-      .filter(attachedMenu)
+      .filter((route) => attachedMenu(route) || foldedRecording(route))
       .map((route) => route.toId)
       .filter(Boolean),
     routes,
@@ -270,6 +315,7 @@ export function journeyModel(flow, { allLinks = false } = {}) {
   const visibleSteps = steps.filter(
     (step) =>
       !step.contextOnly &&
+      !hidden.has(step.id) &&
       (allLinks || !waitingReachable.has(step.id) || mainReachable.has(step.id)),
   );
   const attachments = Object.fromEntries(
@@ -278,15 +324,50 @@ export function journeyModel(flow, { allLinks = false } = {}) {
       {
         queues: routes.filter((route) => route.fromId === step.id && attachedQueue(route)),
         waitingMenus: routes.filter((route) => route.fromId === step.id && attachedMenu(route)),
+        recordings: routes.filter((route) => route.fromId === step.id && attachedRecording(route)),
       },
     ]),
   );
   const nodes = visibleSteps.map((step) => {
-    const node = realNodes.get(step.id),
-      preview = previewOf(node);
+    // Bloc sans ligne propre : il ouvre son volet (données de contexte, ou simple description).
+    if (step.block)
+      return {
+        id: step.id,
+        index: -1,
+        block: step.block,
+        title: step.block.title,
+        kind: step.block.kind,
+        typeLabel: blockPresentation(step.block).typeLabel,
+        icon: blockPresentation(step.block).icon,
+        preview:
+          step.block.kind === 'custom'
+            ? CUSTOM_BLOCK_NOTE
+            : contextData
+              ? contextSummary(contextData)
+              : '',
+        previewLabel: step.block.kind === 'custom' ? 'Nature' : 'Données',
+        contexts: 0,
+        attachments: attachments[step.id],
+        entry: false,
+        terminal: false,
+        unresolved: false,
+        width: CARD_WIDTH,
+        height: 164,
+      };
+    const node = source(step.id),
+      // Le menu de consentement se lit dans le bloc d'enregistrement : son annonce en est l'aperçu.
+      consent = realNodes.get(merged.get(step.id)),
+      preview = previewOf(consent || node),
+      disabled =
+        node.type === 'recording' && [false, 'false', '0', 0].includes(node.row?.ENABLE_RECORDING);
     return {
       id: step.id,
       index: step.index,
+      mergedIndex: consent ? (flow.nodes || []).indexOf(consent) : -1,
+      notes: [
+        disabled ? 'Enregistrement désactivé' : '',
+        consent ? `Menu de consentement · ${consent.key}` : '',
+      ].filter(Boolean),
       title: nodeTitle(node),
       kind: node.type,
       typeLabel: step.entry
@@ -297,7 +378,8 @@ export function journeyModel(flow, { allLinks = false } = {}) {
       icon: KIND_ICONS[node.type] || 'layers',
       preview: preview.text,
       previewLabel: preview.label,
-      contexts: step.contexts.length,
+      contexts: step.contexts.filter((link) => realNodes.get(link.toId)?.type !== 'recording')
+        .length,
       attachments: attachments[step.id],
       entry: step.entry,
       terminal: false,
@@ -348,7 +430,7 @@ export function journeyModel(flow, { allLinks = false } = {}) {
           preview: '',
           previewLabel: '',
           contexts: 0,
-          attachments: { queues: [], waitingMenus: [] },
+          attachments: { queues: [], waitingMenus: [], recordings: [] },
           entry: false,
           terminal: true,
           unresolved,
@@ -380,7 +462,9 @@ export function journeyModel(flow, { allLinks = false } = {}) {
     byId,
     edges: [...groups.values()],
     hiddenLinksCount,
-    hiddenNodeCount: steps.filter((step) => !step.contextOnly).length - visibleSteps.length,
+    hiddenNodeCount:
+      steps.filter((step) => !step.contextOnly && !hidden.has(step.id)).length -
+      visibleSteps.length,
     attachments,
   };
 }

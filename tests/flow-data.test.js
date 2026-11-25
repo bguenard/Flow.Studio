@@ -282,6 +282,22 @@ test('uses schema field capacities and refuses oversize values without mutating 
   assert.throws(() => plan(snapshot, {}, [{ name: 'A', value: 'a'.repeat(101) }]), /capacité/);
   assert.deepEqual(snapshot, before);
 });
+test('the same editor fits the side panel of the journey, without the page header', () => {
+  const model = open(typedSetup()),
+    state = { model, values: {}, additions: [], textFields: [] };
+  const html = flowDataView(state, 'Mon parcours', { panel: true });
+  assert.match(html, /^<section class="editor-card flow-data-panel">/);
+  assert.match(html, /<h2 id="step-title" tabindex="-1">Données de contexte<\/h2>/);
+  assert.doesNotMatch(html, /Retour au parcours|<h1/);
+  assert.match(html, /role="switch"/);
+  assert.match(html, /Vérifier les modifications/);
+  const review = flowDataView({ ...state, review: plan(typedSetup()) }, 'Mon parcours', {
+    panel: true,
+  });
+  assert.match(review, /^<section class="editor-card flow-data-panel">/);
+  assert.match(review, /Vérifier l’initialisation/);
+  assert.doesNotMatch(review, /Retour au parcours/);
+});
 test('page shows boolean switches, calculated values and review rather than publishing directly', () => {
   const model = open(typedSetup()),
     state = { model, values: {}, additions: [], textFields: [] };
@@ -485,4 +501,19 @@ test('missing catalogue prevents typed modifications while leaving unrelated leg
     () => plan(snapshot, {}, [{ selection: 'SEUIL', name: 'SEUIL', value: '2' }]),
     /catalogue partagé/,
   );
+});
+
+test('the side panel lays the editor out on one column', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const css = await readFile(new URL('../src/flow-data.css', import.meta.url), 'utf8');
+  // Le volet est étroit : la page à deux colonnes y serait illisible.
+  assert.match(
+    css,
+    /\.flow-data-panel \.flow-data-layout \{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    css,
+    /\.flow-data-panel \.flow-data-item \{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  );
+  assert.match(css, /\.flow-data-panel \.flow-data-card \{[^}]*border: 0;/);
 });

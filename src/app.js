@@ -6,6 +6,12 @@ import {
 } from './journey-media-view.js';
 import { applyViewLayout, setElementLayout } from './view-layout.js';
 import { FLOW_INITIALIZATION } from './flow-initialization.js';
+import {
+  journeyContextData,
+  inlineControlBlocks,
+  CUSTOM_BLOCK_KIND,
+  CUSTOM_BLOCK_NOTE,
+} from './control-blocks.js';
 import { createFlowInitializationClient } from './genesys-flow-initialization.js';
 import { initializationView } from './initialization-view.js';
 import {
@@ -1303,7 +1309,10 @@ function nodeEditor(node, f) {
             branchFields.findIndex((f) => f.key === field.key),
           ),
         pending,
-        { admin: true },
+        {
+          admin: true,
+          context: { snapshot: applyDraftRows(ui.snapshot, ui.drafts), flow: f, nodeId: node.id },
+        },
       )
     : model.groups
         .map((group) => ({
@@ -1332,7 +1341,10 @@ function nodeEditor(node, f) {
             allBusinessFields.findIndex((f) => f.key === field.key),
           ),
         pending,
-        { routing: false },
+        {
+          routing: false,
+          context: { snapshot: applyDraftRows(ui.snapshot, ui.drafts), flow: f, nodeId: node.id },
+        },
       );
   return `<section class="editor-card journey-editor ${admin ? 'admin-editor' : 'business-editor'}"><header><div><div class="eyebrow">${admin ? 'CONFIGURATION WOLF' : esc(node.label)}</div><h2 id="step-title" tabindex="-1">${esc(audienceNodeTitle(node, ui.audience))}</h2></div><span id="step-save-status">${ui.pendingFields.has(node.id) ? tag('À enregistrer', 'amber') : ui.drafts.has(node.id) ? tag('Brouillon', 'amber') : ''}</span></header>
  ${shared.length > 1 ? notice(`Cette étape est utilisée par <strong>${shared.length} parcours</strong>. Une modification concerne chacun d’eux. <details><summary>Voir les parcours concernés</summary>${shared.map((x) => `<div>${esc(displayTitle(x))}</div>`).join('')}</details>`) : ''}
@@ -1347,10 +1359,11 @@ function nodeEditor(node, f) {
          query: ui.adminQuery,
        })
      : `${!admin && model.summary ? `<div class="business-step-summary"><span>À cette étape</span><p>${esc(model.summary)}</p></div>` : ''}
- ${admin ? stepRelations(f, node.id, 'incoming', { audience: ui.audience }) + stepRelations(f, node.id, 'usedBy', { audience: ui.audience }) : ''}
+ ${admin ? stepRelations(f, node.id, 'incoming', { audience: ui.audience }) : ''}${stepRelations(f, node.id, 'usedBy', { audience: ui.audience })}
  ${admin ? `<label class="configured-fields-filter"><input type="checkbox" id="configured-fields-only" ${ui.onlyConfigured ? 'checked' : ''}> Réglages renseignés uniquement</label><p class="helper">Désactivez pour afficher et renseigner les champs vides.</p>` : ''}
  <form class="node-form" data-node="${index}">${admin ? '<h3 class="step-settings-heading">Réglages avancés</h3>' : ''}${fields.length ? groupHtml : '<p class="helper">Les suites de cette étape sont présentées ci-dessous.</p>'}</form>
  ${admin ? (branchModel.all.length ? '' : stepRelations(f, node.id, 'outgoing', { audience: ui.audience })) + stepRelations(f, node.id, 'attachments', { audience: ui.audience }) + stepRelations(f, node.id, 'contexts', { audience: ui.audience }) : ''}
+ ${!admin && node.type === 'recording' ? stepRelations(f, node.id, 'outgoing', { audience: ui.audience }) : ''}
  ${!admin ? `<div class="business-admin-link">${btn(ui.onlyConfigured ? 'Afficher les réglages vides' : 'Masquer les réglages vides', 'toggle-configured', 'quiet small', `aria-pressed="${!ui.onlyConfigured}"`)}${btn('Voir les détails WOLF', 'set-audience', 'quiet small', 'data-audience="admin" data-panel="source"')}</div>` : ''}`
  }
  </section>`;
@@ -1376,14 +1389,22 @@ function canvasAllLinks() {
 function journeyOptions(f) {
   return {
     audience: ui.audience,
-    selectedId: f.nodes[ui.node]?.id,
+    selectedId: ui.journeyView === 'step' ? f.nodes[ui.node]?.id : undefined,
     overview: ui.journeyView === 'overview',
     query: ui.stepQuery,
     hasDraft: (id) => ui.drafts.has(id),
   };
 }
+/** Données de contexte du parcours ouvert, brouillons compris : lues par les blocs du diagramme et du fil. */
+function contextData() {
+  return journeyContextData(applyDraftRows(ui.snapshot, ui.drafts), current());
+}
+function diagramOptions() {
+  return { allLinks: canvasAllLinks(), contextData: contextData() };
+}
 function businessOptions() {
   return {
+    contextData: contextData(),
     task: ui.businessTask,
     query: ui.businessQuery,
     selected: ui.journeyView === 'step' ? ui.node : -1,
@@ -1397,16 +1418,20 @@ function journeyWorkspace(f) {
     return businessWorkspace(
       f,
       businessOptions(),
-      ui.journeyView === 'step'
-        ? `<aside class="studio-inspector business-quick-editor" aria-label="Réglages de l’étape"><div class="inspector-top"><span>Modifier cette étape</span>${btn(icon('close'), 'journey-overview', 'quiet small', 'aria-label="Fermer les réglages"')}</div><div class="inspector-body">${nodeEditor(selected, f)}</div><div class="inspector-footer"><span class="helper">Modifications non publiées</span>${btn(icon('check') + ' Enregistrer le brouillon', 'save-node', 'primary', `data-node="${ui.node}"`)}</div></aside>`
-        : '',
+      ui.journeyView === 'control'
+        ? `<aside class="studio-inspector business-quick-editor" aria-label="Traitement spécifique">${controlBlockPanel(f)}</aside>`
+        : ui.journeyView === 'data' && ui.flowData
+          ? `<aside class="studio-inspector business-quick-editor" aria-label="Données de contexte">${contextDataPanel()}</aside>`
+          : ui.journeyView === 'step'
+            ? `<aside class="studio-inspector business-quick-editor" aria-label="Réglages de l’étape"><div class="inspector-top"><span>Modifier cette étape</span>${btn(icon('close'), 'journey-overview', 'quiet small', 'aria-label="Fermer les réglages"')}</div><div class="inspector-body">${nodeEditor(selected, f)}</div><div class="inspector-footer"><span class="helper">Modifications non publiées</span>${btn(icon('check') + ' Enregistrer le brouillon', 'save-node', 'primary', `data-node="${ui.node}"`)}</div></aside>`
+            : '',
     );
-  const layout = diagramLayout(f, { allLinks: canvasAllLinks() });
+  const layout = diagramLayout(f, diagramOptions());
   return `<div class="studio-workspace audience-${ui.audience} ${ui.navCollapsed ? 'nav-collapsed' : 'nav-open'} ${ui.journeyView === 'overview' ? 'inspector-closed' : ''}">
  ${journeyNavigation(f, journeyOptions(f))}
  <section class="studio-canvas" aria-label="Carte du parcours"><div class="studio-canvas-toolbar"><div class="studio-canvas-title">${btn(icon('menu'), 'toggle-steps', 'quiet small', `aria-label="${ui.navCollapsed ? 'Afficher' : 'Masquer'} les étapes" title="${ui.navCollapsed ? 'Afficher' : 'Masquer'} les étapes" aria-pressed="${!ui.navCollapsed}"`)}<strong>Carte du parcours</strong><span>${plural(layout.nodes.length, 'étape')} visible${layout.nodes.length > 1 ? 's' : ''}</span></div><div class="studio-canvas-actions">${ui.audience === 'admin' ? `<div class="canvas-modes" role="group" aria-label="Niveau de détail du parcours">${btn('Parcours', 'canvas-main', ui.canvasAllLinks ? '' : 'active', `aria-pressed="${!ui.canvasAllLinks}"`)}${btn('Toutes les liaisons', 'canvas-all', ui.canvasAllLinks ? 'active' : '', `aria-pressed="${ui.canvasAllLinks}"`)}</div>` : ''}${btn('−', 'zoom-out', 'quiet small', 'aria-label="Réduire le parcours"')}<span id="zoom-value">${Math.round(ui.zoom * 100)} %</span>${btn('+', 'zoom-in', 'quiet small', 'aria-label="Agrandir le parcours"')}${btn('Tout voir', 'zoom-fit', 'secondary small')}${btn(icon('search'), 'center-step', 'quiet small', 'aria-label="Recentrer sur l’étape" title="Recentrer sur l’étape"')}</div></div>
- <div class="studio-canvas-body">${journeyDiagram(f, { selectedIndex: ui.journeyView === 'step' ? ui.node : null, zoom: ui.zoom, allLinks: canvasAllLinks(), layout })}</div><div class="studio-canvas-footer"><span>${icon('link')} ${ui.audience === 'business' ? 'Messages, conditions et équipes du parcours' : layout.hiddenLinksCount ? `${layout.hiddenLinksCount} liens de file et d’attente consultables dans les réglages` : 'Toutes les liaisons de routage affichées'}</span><span>Glisser pour déplacer la carte · cliquer une étape pour l’ouvrir</span></div></section>
- ${ui.journeyView === 'step' ? `<aside class="studio-inspector" aria-label="Réglages de l’étape"><div class="inspector-top"><span>${icon(ui.audience === 'admin' ? 'code' : 'people')} ${ui.audience === 'admin' ? 'Configuration de l’étape' : 'Réglages de l’étape'}</span>${btn(icon('close'), 'journey-overview', 'quiet small', 'aria-label="Fermer les réglages"')}</div><div class="inspector-body">${nodeEditor(selected, f)}</div>${selected && (visibleStepFields(selected).some((x) => x.editable || x.resource) || ui.pendingFields.has(selected.id)) && !(ui.audience === 'admin' && ui.adminPanel === 'source') ? `<div class="inspector-footer"><span class="helper">Modifications non publiées</span>${btn(icon('check') + ' Enregistrer le brouillon', 'save-node', 'primary', `data-node="${ui.node}"`)}</div>` : ''}</aside>` : ''}
+ <div class="studio-canvas-body">${journeyDiagram(f, { selectedIndex: ui.journeyView === 'step' ? ui.node : null, selectedKind: ui.journeyView === 'data' ? 'context' : '', selectedCard: ui.journeyView === 'control' ? ui.controlBlock : '', zoom: ui.zoom, allLinks: canvasAllLinks(), layout })}</div><div class="studio-canvas-footer"><span>${icon('link')} ${ui.audience === 'business' ? 'Messages, conditions et équipes du parcours' : layout.hiddenLinksCount ? `${layout.hiddenLinksCount} liens de file et d’attente consultables dans les réglages` : 'Toutes les liaisons de routage affichées'}</span><span>Glisser pour déplacer la carte · cliquer une étape pour l’ouvrir</span></div></section>
+ ${ui.journeyView === 'control' ? `<aside class="studio-inspector" aria-label="Traitement spécifique">${controlBlockPanel(f)}</aside>` : ''}${ui.journeyView === 'data' && ui.flowData ? `<aside class="studio-inspector" aria-label="Données de contexte">${contextDataPanel()}</aside>` : ''}${ui.journeyView === 'step' ? `<aside class="studio-inspector" aria-label="Réglages de l’étape"><div class="inspector-top"><span>${icon(ui.audience === 'admin' ? 'code' : 'people')} ${ui.audience === 'admin' ? 'Configuration de l’étape' : 'Réglages de l’étape'}</span>${btn(icon('close'), 'journey-overview', 'quiet small', 'aria-label="Fermer les réglages"')}</div><div class="inspector-body">${nodeEditor(selected, f)}</div>${selected && (visibleStepFields(selected).some((x) => x.editable || x.resource) || ui.pendingFields.has(selected.id)) && !(ui.audience === 'admin' && ui.adminPanel === 'source') ? `<div class="inspector-footer"><span class="helper">Modifications non publiées</span>${btn(icon('check') + ' Enregistrer le brouillon', 'save-node', 'primary', `data-node="${ui.node}"`)}</div>` : ''}</aside>` : ''}
  </div>`;
 }
 function openStep(index) {
@@ -1414,6 +1439,8 @@ function openStep(index) {
   if (!f.nodes[Number(index)]) return;
   ui.node = Number(index);
   ui.adminQuery = '';
+  // Ouvrir une étape referme le volet des données de contexte.
+  if (ui.flowData?.panel) ui.flowData = null;
   ui.journeyView = 'step';
   if (window.innerWidth <= 1000) ui.navCollapsed = true;
   ui.error = '';
@@ -1449,7 +1476,7 @@ function flowPage() {
 function centerStep(force = true) {
   const viewport = $('#graph-viewport');
   if (!viewport) return;
-  const model = diagramLayout(current(), { allLinks: canvasAllLinks() });
+  const model = diagramLayout(current(), diagramOptions());
   if (!model.ready) return;
   const selected = current().nodes[ui.node],
     owner = current().edges.find(
@@ -1482,7 +1509,7 @@ function setCanvasZoom(zoom, minimum = 0.15) {
     x = (viewport.scrollLeft + viewport.clientWidth / 2) / old,
     y = (viewport.scrollTop + viewport.clientHeight / 2) / old;
   ui.zoom = Math.max(minimum, Math.min(1.5, zoom));
-  const model = diagramLayout(current(), { allLinks: canvasAllLinks() });
+  const model = diagramLayout(current(), diagramOptions());
   setElementLayout(canvas, { scale: ui.zoom });
   setElementLayout(canvas.parentElement, {
     width: model.width * ui.zoom,
@@ -2278,7 +2305,7 @@ function showError(error) {
     ui.source = 'Genesys Dublin · session expirée';
   }
   const message = error?.message || String(error);
-  if (ui.view === 'flowdata' && ui.flowData) {
+  if (flowDataShown()) {
     ui.flowData.error = message;
     ui.error = '';
   } else if (ui.view === 'participantadmin' && ui.participantAdmin) {
@@ -2390,7 +2417,7 @@ async function readActivity() {
 function fitGraphOnce() {
   const viewport = $('#graph-viewport');
   if (!ui.fitPending || !viewport || !current()) return;
-  const graph = diagramLayout(current(), { allLinks: canvasAllLinks() });
+  const graph = diagramLayout(current(), diagramOptions());
   if (!graph.ready) return;
   ui.fitPending = false;
   setCanvasZoom(
@@ -2408,7 +2435,7 @@ function fitGraphOnce() {
 function fitGraph() {
   const viewport = $('#graph-viewport');
   if (!viewport) return;
-  const graph = diagramLayout(current(), { allLinks: canvasAllLinks() });
+  const graph = diagramLayout(current(), diagramOptions());
   if (!graph.ready) return;
   setCanvasZoom(
     Math.min(
@@ -3014,8 +3041,31 @@ function applyDesign() {
   toast('Parcours modifié en brouillon. À contrôler avant publication.');
 }
 
+/** L'éditeur des données est à l'écran : sur sa page, ou dans le volet du parcours. */
+function flowDataShown() {
+  return Boolean(
+    ui.flowData && (ui.view === 'flowdata' || (ui.view === 'flow' && ui.journeyView === 'data')),
+  );
+}
+function closeFlowData() {
+  const panel = ui.flowData?.panel;
+  ui.flowData = null;
+  if (panel) {
+    ui.journeyView = 'overview';
+    render();
+  } else go('flow');
+}
+/** Volet d'un traitement propre à l'organisation : sa place dans le parcours, sans réglage. */
+function controlBlockPanel(f) {
+  const block = inlineControlBlocks(f, flowRoutes(f)).blocks.get(ui.controlBlock),
+    caller = block ? f.nodes.findIndex((node) => node.id === block.fromId) : -1;
+  return `<div class="inspector-top"><span>${icon('code')} ${CUSTOM_BLOCK_KIND}</span>${btn(icon('close'), 'journey-overview', 'quiet small', 'aria-label="Fermer"')}</div><div class="inspector-body"><section class="editor-card journey-editor"><header><div><div class="eyebrow">${esc(CUSTOM_BLOCK_KIND.toUpperCase())}</div><h2 id="step-title" tabindex="-1">${esc(block?.title || 'Traitement introuvable')}</h2></div></header>${block ? `<p>${esc(CUSTOM_BLOCK_NOTE)}</p><p class="helper">Flow.Studio l’affiche pour situer le traitement dans l’appel. Il se retire ou se déplace dans les contrôles de l’étape qui l’appelle.</p>${caller >= 0 ? `<section class="step-relations" aria-label="Appelé par"><h3>Appelé par</h3><div class="step-relation-list"><button class="step-relation" data-action="select-node" data-node="${caller}"><span>${esc(block.label)}</span><strong>${esc(audienceNodeTitle(f.nodes[caller], ui.audience))}</strong><small>Ouvrir cette étape</small></button></div></section>` : ''}` : '<p class="helper">Ce traitement n’est plus appelé par ce parcours.</p>'}</section></div>`;
+}
+function contextDataPanel() {
+  return `<div class="inspector-top"><span>${icon('database')} Données de contexte</span>${btn(icon('close'), 'flow-data-close', 'quiet small', 'aria-label="Fermer les données de contexte"')}</div><div class="inspector-body">${flowDataView(ui.flowData, displayTitle(current()), { catalogue: ui.participantCatalogue, busy: ui.governanceBusy, panel: true })}</div>`;
+}
 function captureFlowData() {
-  if (!ui.flowData || ui.view !== 'flowdata') return;
+  if (!flowDataShown()) return;
   for (const input of $$('[data-init-id]')) ui.flowData.values[input.dataset.initId] = input.value;
   for (const input of $$('[data-init-new]')) {
     const a = ui.flowData.additions[Number(input.dataset.initNew)];
@@ -3112,7 +3162,16 @@ async function action(name, el) {
       openFlow(el.dataset.index);
       await action('flow-data-open', el);
       break;
-    case 'flow-data-open': {
+    case 'control-block-open':
+      if (ui.flowData?.panel) ui.flowData = null;
+      ui.controlBlock = el.dataset.card;
+      ui.journeyView = 'control';
+      ui.error = '';
+      render();
+      $('#step-title')?.focus({ preventScroll: true });
+      break;
+    case 'flow-data-open':
+    case 'context-data-open': {
       if (ui.pendingFields.size)
         throw Error('Enregistrez les réglages en cours avant d’ouvrir les données du parcours.');
       if (ui.activitySource === 'genesys') {
@@ -3120,8 +3179,15 @@ async function action(name, el) {
         resourceStates.set('divisions', { status: 'ready', entities });
       }
       const model = flowDataModel(applyDraftRows(ui.snapshot, ui.drafts), current().id);
-      ui.flowData = { model, values: {}, additions: [], textFields: [] };
-      go('flowdata');
+      // Depuis le bloc du parcours, les données s'ouvrent dans le volet : on reste sur le parcours.
+      const panel = name === 'context-data-open';
+      ui.flowData = { model, values: {}, additions: [], textFields: [], panel };
+      if (panel) {
+        ui.journeyView = 'data';
+        ui.error = '';
+        render();
+        $('#step-title')?.focus({ preventScroll: true });
+      } else go('flowdata');
       break;
     }
     case 'participant-catalogue-reload': {
@@ -3311,8 +3377,7 @@ async function action(name, el) {
       break;
     }
     case 'flow-data-close':
-      ui.flowData = null;
-      go('flow');
+      closeFlowData();
       break;
     case 'flow-data-add':
       captureFlowData();
@@ -3363,8 +3428,7 @@ async function action(name, el) {
           placementLabel: 'Initialisation à l’entrée du parcours',
         });
       record('Données d’entrée du parcours préparées');
-      ui.flowData = null;
-      go('flow');
+      closeFlowData();
       toast('Données enregistrées en brouillon. Publiez-les depuis Mes changements.');
       break;
     }
@@ -5218,7 +5282,7 @@ document.addEventListener('keydown', (event) => {
 
 // Dependent catalogue controls retain current values until the user chooses replacements.
 document.addEventListener('change', (event) => {
-  if (ui.view === 'flowdata' && event.target.matches('[data-init-part="selection"]')) {
+  if (flowDataShown() && event.target.matches('[data-init-part="selection"]')) {
     captureFlowData();
     const addition = ui.flowData.additions[Number(event.target.dataset.initNew)];
     if (addition) {

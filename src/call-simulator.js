@@ -191,7 +191,9 @@ export function advanceSimulation(session, routeId) {
 export function resumeSimulation(session, nodeId) {
   if (!['boundary', 'blocked'].includes(session.status) || session.trail.length >= 80)
     throw Error('Cette simulation ne peut pas être reprise ici.');
-  const node = session.flow.nodes.find((n) => n.id === nodeId && n.type !== 'pdata');
+  const node = session.flow.nodes.find(
+    (n) => n.id === nodeId && !['pdata', 'recording'].includes(n.type),
+  );
   if (!node) throw Error('Choisissez une étape de ce parcours.');
   const next = structuredClone(session);
   next.trail.push({

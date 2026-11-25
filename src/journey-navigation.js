@@ -7,6 +7,7 @@ const ICONS = {
   service: 'people',
   menu: 'menu',
   pdata: 'building',
+  recording: 'mic',
   decision: 'diff',
   ratiodistrib: 'diff',
   bot: 'message',

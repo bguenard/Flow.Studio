@@ -157,7 +157,9 @@ test('calendar inspector scopes destination, context and controls to the selecte
   assert.match(closed, /data-field="CLOSED_TARGET"/);
   assert.doesNotMatch(closed, /data-field="OPEN_TARGET"|agence_ouverte/);
   assert.match(closed, /Contexte transmis<\/dt><dd>agence_ferme/);
-  assert.match(closed, /Contrôle exécuté<\/dt><dd>qualifier/);
+  assert.match(closed, /Contrôle exécuté avant cette suite<\/dt>/);
+  assert.match(closed, /<strong>qualifier<\/strong>/);
+  assert.match(closed, /propre à votre organisation/);
   const pending = { CLOSED_TARGET: 'status|pdata:contexte_modifie' };
   assert.match(
     businessBranchView(model(n, pending), 'CLOSED_TARGET_TYPE', render, pending),
@@ -165,6 +167,50 @@ test('calendar inspector scopes destination, context and controls to the selecte
   );
   assert.match(businessBranchView(m, 'OPEN_TARGET_TYPE', render), /agence_ouverte/);
   assert.deepEqual(n.row, original);
+});
+
+test('each control of a situation is listed with what the Studio knows about it', () => {
+  const n = fixture('decision', {
+    TRUE_TARGET_TYPE: 'decision|sub:INFO_ROUTAGE;RECORDING;bot_qualification',
+    TRUE_TARGET: 'suite',
+    TRUE_TARGET_AUDIO: '',
+  });
+  const context = {
+    snapshot: {
+      tables: [
+        {
+          name: 'W_RECORDING_V5',
+          rows: [{ key: 'Home', ENABLE_RECORDING: false, AUDIO_RECORDING: '', CONSENT_MENU: '' }],
+        },
+      ],
+    },
+    flow: { nodes: [{ type: 'inboundcall', row: { DIVISION: 'Atlantique' } }, n] },
+  };
+  const render = (f) => `<input data-field="${f.key}">`;
+  const html = businessBranchView(
+    model(n),
+    'TRUE_TARGET_TYPE',
+    render,
+    {},
+    { admin: true, context },
+  );
+  assert.match(html, /Contrôles exécutés avant cette suite<\/dt>/);
+  assert.doesNotMatch(html, /INFO_ROUTAGE;RECORDING/);
+  assert.equal(html.match(/<li class="route-control/g).length, 3);
+  assert.match(html, /<strong>Données de contexte<\/strong> <code>INFO_ROUTAGE<\/code>/);
+  assert.match(html, /<strong>Enregistrement de l’appel<\/strong> <code>RECORDING<\/code>/);
+  assert.match(html, /class="route-control-warning"[^>]*>[^<]*désactivé/);
+  assert.match(html, /<strong>bot_qualification<\/strong>/);
+  // La vue Métier garde l'explication, sans le nom technique des contrôles connus.
+  const business = businessBranchView(
+    model(n),
+    'TRUE_TARGET_TYPE',
+    render,
+    {},
+    { routing: false, context },
+  );
+  assert.match(business, /<strong>Enregistrement de l’appel<\/strong>/);
+  assert.doesNotMatch(business, /<code>RECORDING<\/code>/);
 });
 
 test('menu selector orders digits, star, hash and fallback, but renders only the selected choice', () => {
@@ -206,4 +252,17 @@ test('menu selector orders digits, star, hash and fallback, but renders only the
   assert.match(terminal, /Fin d’appel/);
   assert.doesNotMatch(terminal, /Non configuré : aucune action/);
   assert.deepEqual(node.row, before);
+});
+
+test('the controls list emitted by the situation panel is styled', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const css = await readFile(new URL('../src/business-workspace.css', import.meta.url), 'utf8');
+  // Les classes produites par la vue doivent exister dans la feuille : sinon la liste perd sa mise en forme.
+  for (const selector of [
+    '.route-controls {',
+    '.route-control span {',
+    '.route-control .route-control-warning {',
+  ])
+    assert.ok(css.includes(selector), selector);
+  assert.match(css, /\.route-control \.route-control-warning \{\s*color: #8a4b00;/);
 });

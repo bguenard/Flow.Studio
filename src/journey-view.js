@@ -51,7 +51,10 @@ export function journeyNavigation(flow, options = {}) {
 }
 
 export function stepRelations(flow, nodeId, side, { audience = 'business' } = {}) {
-  if (audience !== 'admin' && ['contexts', 'usedBy'].includes(side)) return '';
+  const recording = (id) => flow.nodes.find((node) => node.id === id)?.type === 'recording';
+  // Le bloc d'enregistrement se lit dans les deux vues : qui l'appelle fait partie du réglage.
+  if (audience !== 'admin' && (side === 'contexts' || (side === 'usedBy' && !recording(nodeId))))
+    return '';
   const step = journeySteps(flow).find((item) => item.id === nodeId);
   if (!step) return '';
   const incoming = side === 'incoming' || side === 'usedBy';
@@ -74,7 +77,9 @@ export function stepRelations(flow, nodeId, side, { audience = 'business' } = {}
     side === 'incoming'
       ? 'On arrive ici depuis'
       : side === 'usedBy'
-        ? 'Ces informations sont utilisées par'
+        ? recording(nodeId)
+          ? 'Enregistrement demandé par'
+          : 'Ces informations sont utilisées par'
         : side === 'contexts'
           ? 'Informations associées à cette étape'
           : side === 'attachments'
@@ -84,7 +89,8 @@ export function stepRelations(flow, nodeId, side, { audience = 'business' } = {}
     .map((link) => {
       const id = incoming ? link.fromId : link.toId;
       const index = flow.nodes.findIndex((node) => node.id === id);
-      const label = side === 'contexts' ? 'Informations transmises' : link.label;
+      const label =
+        side === 'contexts' && !recording(link.toId) ? 'Informations transmises' : link.label;
       const title = index >= 0 ? audienceNodeTitle(flow.nodes[index], audience) : link.title;
       return `<${index >= 0 ? 'button' : 'div'} class="step-relation ${index < 0 && !link.resolved && !link.terminal && !link.dynamic ? 'unresolved' : ''}" ${index >= 0 ? `data-action="select-node" data-node="${index}"` : ''}><span>${esc(label)}</span><strong>${esc(title)}</strong>${index >= 0 ? '<small>Ouvrir cette étape</small>' : ''}</${index >= 0 ? 'button' : 'div'}>`;
     })

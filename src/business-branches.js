@@ -3,6 +3,7 @@ import { branchRank as routeBranchRank } from './business.js';
 import { routeTargetKey, routeTypeLabels } from './v5-fields.js';
 import { fieldLabel } from './draft-fields.js';
 import { esc } from './ui-kit.js';
+import { routeControls } from './route-controls.js';
 const present = (value) => value != null && String(value).trim() !== '';
 const valueOf = (field, pending) =>
   Object.hasOwn(pending, field.key) ? pending[field.key] : field.value;
@@ -122,13 +123,13 @@ export function businessBranchView(
   selected,
   renderField,
   pending = {},
-  { routing = true, admin = false } = {},
+  { routing = true, admin = false, context = {} } = {},
 ) {
   if (!model.all.length) return '';
   const branch = model.branches.find((b) => b.id === selected) || model.branches[0];
   return `<section class="business-setting-group business-branch-editor"><h3>Choix et suites du parcours</h3><p class="helper">Seuls les réglages du choix sélectionné sont affichés.</p>${
     branch
-      ? `<div class="field"><label for="business-branch">${model.all.some((b) => /^OPTION/.test(b.id)) ? 'Choix à modifier' : 'Situation à modifier'}</label><select id="business-branch">${model.branches.map((b) => `<option value="${esc(b.id)}" ${b.id === branch.id ? 'selected' : ''}>${esc(b.label)}${b.route ? '' : ' · non configuré'}</option>`).join('')}</select></div><div class="business-branch-panel"><h4>${esc(branch.label)}</h4>${!branch.route ? '<p class="helper">Non configuré : aucune action n’est définie pour ce choix.</p>' : ''}${routing ? '' : destination(branch)}${branchParametersView(branch, pending)}<div class="field-grid">${branch.fields
+      ? `<div class="field"><label for="business-branch">${model.all.some((b) => /^OPTION/.test(b.id)) ? 'Choix à modifier' : 'Situation à modifier'}</label><select id="business-branch">${model.branches.map((b) => `<option value="${esc(b.id)}" ${b.id === branch.id ? 'selected' : ''}>${esc(b.label)}${b.route ? '' : ' · non configuré'}</option>`).join('')}</select></div><div class="business-branch-panel"><h4>${esc(branch.label)}</h4>${!branch.route ? '<p class="helper">Non configuré : aucune action n’est définie pour ce choix.</p>' : ''}${routing ? '' : destination(branch)}${branchParametersView(branch, pending, { ...context, admin })}<div class="field-grid">${branch.fields
           .filter((f) =>
             routing
               ? !(
@@ -161,8 +162,24 @@ export function businessBranchView(
   }${model.branches.length < model.all.length ? '<button type="button" class="btn quiet small" data-action="business-show-choices">Afficher aussi les choix non renseignés</button>' : ''}</section>`;
 }
 
+/** Un contrôle par ligne, avec ce que les tables chargées permettent d'en dire. */
+function controlsView(value, branch, context) {
+  const controls = routeControls(value, { ...context, waiting: /^INQUEUE/.test(branch.id) });
+  if (!controls.length) return '';
+  // Le réglage d'enregistrement de ce parcours est un bloc que l'on peut ouvrir et modifier.
+  const link = (context.flow?.edges || []).find(
+      (edge) => edge.from === context.nodeId && edge.type === 'recording' && edge.to,
+    ),
+    block = link ? context.flow.nodes.findIndex((node) => node.id === link.to) : -1;
+  return `<div><dt>${controls.length > 1 ? 'Contrôles exécutés avant cette suite' : 'Contrôle exécuté avant cette suite'}</dt><dd><ol class="route-controls">${controls
+    .map(
+      (control) =>
+        `<li class="route-control route-control-${control.kind}"><strong>${esc(control.title)}</strong>${context.admin && control.kind !== 'custom' ? ` <code>${esc(control.name)}</code>` : ''}${control.notes.map((note) => `<span>${esc(note)}</span>`).join('')}${control.warning ? `<span class="route-control-warning" role="note">${esc(control.warning)}</span>` : ''}${control.kind === 'context' && context.flow?.version === '5' && context.flow.media !== 'messaging' ? '<button type="button" class="btn quiet small" data-action="context-data-open">Ouvrir les données de contexte</button>' : ''}${control.kind === 'recording' && block >= 0 ? `<button type="button" class="btn quiet small" data-action="select-node" data-node="${block}">Ouvrir le bloc d’enregistrement</button>` : ''}</li>`,
+    )
+    .join('')}</ol></dd></div>`;
+}
 /** Show the parameters specific to the selected exit, even when destinations match. */
-export function branchParametersView(branch, pending = {}) {
+export function branchParametersView(branch, pending = {}, context = {}) {
   const type = branch.fields.find((f) => f.kind === 'route-type'),
     target = branch.fields.find((f) => f.kind === 'route-target');
   const details = [type, target]
@@ -177,10 +194,10 @@ export function branchParametersView(branch, pending = {}) {
       const at = part.indexOf(':'),
         name = at < 0 ? '' : part.slice(0, at).toLowerCase(),
         value = at < 0 ? part : part.slice(at + 1);
+      if (name === 'sub') return controlsView(value, branch, context);
       const label =
-        { pdata: 'Contexte transmis', sub: 'Contrôle exécuté', lang: 'Langue', status: 'Statut' }[
-          name
-        ] || 'Paramètre associé';
+        { pdata: 'Contexte transmis', lang: 'Langue', status: 'Statut' }[name] ||
+        'Paramètre associé';
       return `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
     });
   return details.length

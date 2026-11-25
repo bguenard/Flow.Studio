@@ -119,6 +119,37 @@
 .flow-data-review span {
   color: #526374;
 }
+/* Dans le volet du parcours : une colonne, sans cartes imbriquées. */
+.flow-data-panel .flow-data-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.flow-data-panel .flow-data-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.flow-data-panel aside.flow-data-card {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #e3e8ed;
+}
+.flow-data-panel .flow-data-heading h2 {
+  font-size: 17px;
+}
+.flow-data-panel .flow-data-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 18px 0;
+}
+.flow-data-panel .flow-data-item.new {
+  padding: 16px;
+}
+.flow-data-panel .flow-data-timing {
+  padding: 12px;
+  font-size: 13px;
+}
 @media (max-width: 1000px) {
   .flow-data-layout {
     grid-template-columns: minmax(0, 1fr);
