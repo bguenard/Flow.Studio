@@ -247,6 +247,15 @@ test('resource editor exposes escaped choices, connection and denial states', ()
   );
 });
 
+test('resource selectors use the same label for a saved dynamic value', () => {
+  const step = node({ LANGUAGE_SKILL: 'variable', SKILLS: 'variable' });
+  for (const [index, key] of ['LANGUAGE_SKILL', 'SKILLS'].entries()) {
+    const field = businessFields(step).find((field) => field.key === key);
+    const html = resourceEditor(field, index, { node: step, state: { status: 'ready' } });
+    assert.match(html, /<option [^>]*selected[^>]*>variable · valeur actuelle<\/option>/);
+  }
+});
+
 test('bots accept a published Genesys flow ID or an explicit external ID without guessing the provider', () => {
   const step = { ...node({ ID_BOT: 'external-existing' }), tableName: 'W_BOT_v5' };
   const catalogues = {

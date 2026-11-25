@@ -47,6 +47,7 @@ const attachedMenu = (route) =>
 const attachedRoute = (route) => attachedQueue(route) || attachedMenu(route);
 
 function previewOf(node) {
+  const callback = node.type === 'callback';
   const fields = businessFields(node).filter(
     (field) =>
       field.value !== '' &&
@@ -54,23 +55,24 @@ function previewOf(node) {
       field.value !== undefined &&
       field.key !== 'DESCRIPTION',
   );
-  const priorities = ['inboundcall', 'segment'].includes(node.type)
-    ? ['WELCOM_MESSAGE', 'WELCOME_AUDIO', 'LANGUAGE']
-    : ['menu', 'quickreplies', 'carousel', 'waitforinput'].includes(node.type)
-      ? ['MENU_MESSAGE', 'CAROUSEL_QUESTION', 'QUESTION', 'MENU_AUDIO']
-      : node.type === 'service'
-        ? ['QUEUE', 'SKILLS', 'PRIORITY']
-        : node.type === 'schedulegroup'
-          ? ['SCHEDULE_GROUP', 'EMERGENCY_GROUP']
-          : ['PARTICIPANT_DATA_TO_CHECK', 'DECISION_VALUE', 'PDATA_LIST_1'];
+  const priorities = callback
+    ? ['CALLBACK_VALIDATION_AUDIO', 'CALLBACK_QUEUE']
+    : ['inboundcall', 'segment'].includes(node.type)
+      ? ['WELCOM_MESSAGE', 'WELCOME_AUDIO', 'LANGUAGE']
+      : ['menu', 'quickreplies', 'carousel', 'waitforinput'].includes(node.type)
+        ? ['MENU_MESSAGE', 'CAROUSEL_QUESTION', 'QUESTION', 'MENU_AUDIO']
+        : node.type === 'service'
+          ? ['QUEUE', 'SKILLS', 'PRIORITY']
+          : node.type === 'schedulegroup'
+            ? ['SCHEDULE_GROUP', 'EMERGENCY_GROUP']
+            : ['PARTICIPANT_DATA_TO_CHECK', 'DECISION_VALUE', 'PDATA_LIST_1'];
   const field =
     priorities.map((key) => fields.find((item) => item.key === key)).find(Boolean) ||
-    fields.find((item) => item.kind === 'audio') ||
-    fields[0];
+    (!callback && (fields.find((item) => item.kind === 'audio') || fields[0]));
   return field
     ? {
         text:
-          field.key === 'QUEUE' && dynamicValue(field.value)
+          ['QUEUE', 'CALLBACK_QUEUE'].includes(field.key) && dynamicValue(field.value)
             ? 'File choisie pendant l’appel'
             : field.display,
         label: field.label,

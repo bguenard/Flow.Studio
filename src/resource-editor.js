@@ -9,8 +9,9 @@ export function resourceEditor(field, index, { node, pending, state, connected }
   const value = resourceEdit ? edit.resource : saved;
   const options = resourceOptions(field, node, state?.entities);
   const ready = state?.status === 'ready';
+  const currentValueLabel = (value) => esc(value) + ' · valeur actuelle';
   const select = (id, current, attrs = '') =>
-    `<select id="${id}" ${attrs} ${field.required ? 'required' : ''} ${ready ? '' : 'disabled'}><option value="__keep__" ${current === '__keep__' ? 'selected' : ''}>Conserver : ${esc(field.display)}</option><option value="" ${current === '' ? 'selected' : ''}>${field.required ? 'Choisir…' : 'Aucune ressource'}</option>${current && current !== '__keep__' && !options.some((o) => o.value === current) ? `<option value="${esc(current)}" selected disabled>${esc(current)} · valeur actuelle</option>` : ''}${options.map((option) => `<option value="${esc(option.value)}" ${option.disabled ? 'disabled' : ''} ${option.value === current ? 'selected' : ''}>${esc(option.label)}${option.disabled ? ' · référence ambiguë' : ''}</option>`).join('')}</select>`;
+    `<select id="${id}" ${attrs} ${field.required ? 'required' : ''} ${ready ? '' : 'disabled'}><option value="__keep__" ${current === '__keep__' ? 'selected' : ''}>${currentValueLabel(field.display)}</option><option value="" ${current === '' ? 'selected' : ''}>${field.required ? 'Choisir…' : 'Aucune ressource'}</option>${current && current !== '__keep__' && !options.some((o) => o.value === current) ? `<option value="${esc(current)}" selected disabled>${currentValueLabel(current)}</option>` : ''}${options.map((option) => `<option value="${esc(option.value)}" ${option.disabled ? 'disabled' : ''} ${option.value === current ? 'selected' : ''}>${esc(option.label)}${option.disabled ? ' · référence ambiguë' : ''}</option>`).join('')}</select>`;
   let control = '';
   if (spec.multiple) {
     const values = value ? value.split(';') : [];

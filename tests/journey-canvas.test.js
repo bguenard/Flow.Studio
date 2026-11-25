@@ -134,6 +134,23 @@ test('actual terminal and missing destinations stay distinct and faithfully name
   assert.ok(layout.nodes.some((n) => n.title === 'Destination à vérifier' && n.unresolved));
 });
 
+test('a callback card reserves its preview for confirmation or the callback queue', () => {
+  const callback = node('callback', 'callback');
+  callback.row.DEFAULT_TARGET_AUDIO = 'tts:Un problème technique est survenu';
+  const flow = {
+    id: 'entry',
+    nodes: [node('entry', 'inboundcall'), callback],
+    edges: [edge('entry', 'callback', 'NEXT', { type: 'callback' })],
+  };
+  const preview = () => layoutJourney(flow).nodes.find((item) => item.id === 'callback').preview;
+
+  assert.equal(preview(), '');
+  callback.row.CALLBACK_QUEUE = 'variable';
+  assert.equal(preview(), 'File choisie pendant l’appel');
+  callback.row.CALLBACK_VALIDATION_AUDIO = 'tts:Votre demande de rappel est confirmée';
+  assert.match(preview(), /Votre demande de rappel est confirmée/);
+});
+
 test('primary view folds queue properties and waiting menus but preserves N1 to N2 continuation', async () => {
   const first = node('n1', 'service', 'Niveau 1');
   first.row.QUEUE = 'variable';
