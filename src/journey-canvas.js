@@ -29,6 +29,7 @@ const KIND_ICONS = {
   decision: 'diff',
   pdata: 'building',
   bot: 'message',
+  callback: 'phone',
   queue: 'people',
   disconnect: 'phone',
   number: 'phone',

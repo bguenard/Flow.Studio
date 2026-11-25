@@ -4985,7 +4985,7 @@ try {
 let canvasDrag = null;
 document.addEventListener('pointerdown', (event) => {
   const viewport = event.target.closest('#graph-viewport');
-  if (!viewport || event.button !== 0 || event.target.closest('button')) return;
+  if (!viewport || event.button !== 0 || event.target.closest('button, a[href]')) return;
   canvasDrag = {
     viewport,
     x: event.clientX,

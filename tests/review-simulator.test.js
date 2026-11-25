@@ -119,21 +119,41 @@ test('an overflow to another Genesys queue stays available while the caller wait
   assert.equal(direct.waiting, null);
 });
 
-test('a callback destination is an external hand-over, not a missing destination', () => {
-  const report = inspectJourney(flow(), snapshot());
+test('a callback links to its exact WOLF row and remains an external hand-over in simulation', () => {
+  const configured = flow();
+  const callback = configured.nodes.find((node) => node.type === 'callback');
+  assert.equal(callback?.id, 'cb:cb1');
+  assert.equal(callback.row.DESCRIPTION, 'Rappel');
+  assert.ok(configured.edges.some((edge) => edge.to === callback.id && edge.resolved));
+  const report = inspectJourney(configured, snapshot());
   assert.equal(report.errors, 0);
   assert.ok(
     report.findings.some((finding) => finding.level === 'warning' && /rappel/i.test(finding.title)),
   );
-  const orphan = snapshot();
-  const tables = structuredClone(orphan.tables).filter((table) => table.name !== 'W_CALLBACK_v5');
-  assert.ok(
-    inspectJourney(flow(), { tables }).errors > 0,
-    'a callback without its row is still a missing destination',
-  );
+  const tables = snapshot().tables.filter((table) => table.name !== 'W_CALLBACK_v5');
+  const missing = buildVoiceInventory({ tables }).flows[0];
+  assert.ok(inspectJourney(missing, { tables }).errors > 0);
+  assert.equal(choose(choose(startSimulation(missing), 'NEXT'), 'OPTION4').status, 'blocked');
   const ended = choose(atMenu(), 'OPTION4');
   assert.equal(ended.status, 'complete');
   assert.match(ended.outcome, /rappel/i);
+});
+
+test('a subroutine parameter does not add steps from unrelated Data Table rows', () => {
+  const source = structuredClone(snapshot());
+  Object.assign(source.tables[0].rows[0], {
+    NEXT_TARGET_TYPE: 'disconnect|sub:qualification',
+    NEXT_TARGET: '',
+  });
+  const journey = buildVoiceInventory(source).flows[0];
+  assert.deepEqual(
+    journey.nodes.map((node) => node.type),
+    ['inboundcall'],
+  );
+  assert.deepEqual(
+    journey.edges.map((edge) => edge.parameters),
+    [['sub:qualification']],
+  );
 });
 
 test('a language switch on a transition applies to the following messages and is undone by going back', () => {

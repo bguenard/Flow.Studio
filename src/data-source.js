@@ -44,6 +44,7 @@ const TYPE_TABLES = {
     decision: 'W_DECISION_v5',
     ratiodistrib: 'W_RATIO_DISTRIB_v5',
     bot: 'W_BOT_v5',
+    callback: 'W_CALLBACK_v5',
     transfercallflow: 'W_TRANSFER_CALLFLOW_v5',
   },
 };
@@ -581,12 +582,14 @@ export function buildVoiceInventory(input) {
             });
             continue;
           }
-          if (ref.type === 'callback') {
+          const reportCallbackDependency = () =>
             issue(
               'external-flow',
               `Le rappel dépend du flow de rappel WOLF v${version} ; sa disponibilité n’est pas vérifiable dans cet export.`,
               { nodeId: id, field: ref.field },
             );
+          if (ref.type === 'callback' && version === '4') {
+            reportCallbackDependency();
             continue;
           }
           const targetTableName = own(typeTables, ref.type) ? typeTables[ref.type] : undefined;
@@ -609,6 +612,7 @@ export function buildVoiceInventory(input) {
               : {}),
           });
           if (!found) continue;
+          if (ref.type === 'callback') reportCallbackDependency();
           const nodeType =
             ref.type === 'standardcallflow'
               ? 'inboundcall'

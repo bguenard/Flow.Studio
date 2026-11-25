@@ -150,7 +150,7 @@ export function advanceSimulation(session, routeId) {
     next.status = 'boundary';
     next.outcome =
       'Destination calculée pendant l’appel : choisissez une hypothèse pour poursuivre.';
-  } else if (type === 'callback') {
+  } else if (type === 'callback' && (route.resolved || session.flow.version === '4')) {
     next.status = 'complete';
     next.outcome = 'Rappel confié au flow de rappel WOLF (non simulé)';
   } else if (!route.resolved) {

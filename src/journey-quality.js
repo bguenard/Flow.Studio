@@ -15,15 +15,13 @@ export function inspectJourney(flow, snapshot) {
         field: route.edge.field,
       });
     else if (
-      !route.resolved &&
-      String(route.edge.type || '')
-        .toLowerCase()
-        .split('|')[0] === 'callback' &&
-      snapshot?.tables?.some(
-        (t) =>
-          /^W_CALLBACK_v5$/i.test(t.name) &&
-          t.rows.some((r) => String(r.key) === String(route.edge.target)),
-      )
+      flow.issues?.some(
+        (issue) =>
+          issue.code === 'external-flow' &&
+          issue.nodeId === route.fromId &&
+          issue.field === route.edge.field,
+      ) &&
+      route.resolved
     )
       findings.push({
         level: 'warning',
