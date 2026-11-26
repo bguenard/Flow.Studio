@@ -49,12 +49,12 @@ function retryDelay(response, attempt) {
   }
   return 500 * 2 ** attempt;
 }
-function apiError(status) {
+function apiError(status, operation) {
   const error = new Error(
     status === 401
       ? 'Votre session Genesys a expiré. Reconnectez-vous.'
       : status === 403
-        ? 'Votre compte Genesys ou les scopes OAuth ne permettent pas de lire ces data tables.'
+        ? `Genesys a refusé l’accès (HTTP 403). ${operation}. Vérifiez les droits de lecture du compte sur les divisions concernées et les scopes OAuth autorisés dans cette organisation.`
         : status === 404
           ? 'Une data table n’est plus disponible. Actualisez la source.'
           : status === 429
@@ -84,7 +84,7 @@ export async function loadFromGenesys(token, options = {}) {
   const progress = (event) => {
     if (typeof options.onProgress === 'function') options.onProgress(Object.freeze(event));
   };
-  const request = async (path, query) => {
+  const request = async (path, query, operation) => {
     const url = API_ROOT + path + '?' + new URLSearchParams(query).toString();
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       checkAbort(options.signal);
@@ -132,19 +132,22 @@ export async function loadFromGenesys(token, options = {}) {
       }
       if (RETRY_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS - 1) {
         const delay = retryDelay(response, attempt);
-        if (delay > MAX_WAIT_MS) throw apiError(response.status);
+        if (delay > MAX_WAIT_MS) throw apiError(response.status, operation);
         progress({ phase: 'retry', attempt: attempt + 1, delayMs: delay, status: response.status });
         await pause(delay, options.signal);
         continue;
       }
-      throw apiError(response.status);
+      throw apiError(response.status, operation);
     }
   };
 
   const collect = async (path, extra, context) => {
     const entities = [];
+    const operation = context.tableName
+      ? `Lecture des lignes de « ${context.tableName} »`
+      : 'Liste des Data Tables';
     for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber++) {
-      const payload = await request(path, { ...extra, pageSize: PAGE_SIZE, pageNumber });
+      const payload = await request(path, { ...extra, pageSize: PAGE_SIZE, pageNumber }, operation);
       if (!object(payload) || !Array.isArray(payload.entities))
         throw new Error('Réponse Genesys invalide : liste « entities » manquante.');
       if (payload.pageNumber != null && Number(payload.pageNumber) !== pageNumber)
@@ -237,7 +240,12 @@ export async function loadFromGenesys(token, options = {}) {
     checkAbort(options.signal);
     const id = encodeURIComponent(item.id);
     let detail = item;
-    if (!object(detail.schema)) detail = await request(`/${id}`, { expand: 'schema' });
+    if (!object(detail.schema))
+      detail = await request(
+        `/${id}`,
+        { expand: 'schema' },
+        `Lecture du schéma de « ${item.name} »`,
+      );
     if (
       !object(detail) ||
       detail.id !== item.id ||

@@ -279,6 +279,7 @@ function initialState() {
     snapshot: null,
     inventory: null,
     source: 'Genesys Dublin · déconnecté',
+    sourceAccessDenied: false,
   };
 }
 let ui = initialState();
@@ -512,6 +513,7 @@ function setSource(snapshot, label, sourceMode = 'local') {
   ui.activityData = null;
   ui.activityError = '';
   ui.source = label;
+  ui.sourceAccessDenied = false;
   ui.drafts = new Map();
   ui.draftRevision++;
   ui.comparisonSessions = new Map();
@@ -961,6 +963,11 @@ function inReferenceSpace() {
 function shell(body) {
   const n = draftChanges().length + ui.creations.size + ui.blockCreations.size,
     collapsed = (sidebarShownCollapsed = menuCollapsed());
+  const connected = Boolean(getAccessToken()),
+    accessDenied = connected && ui.sourceAccessDenied;
+  const sourceStatus = accessDenied
+    ? tag('Genesys Dublin · accès aux tables refusé', 'amber')
+    : tag(ui.source, connected && ui.activitySource === 'genesys' ? 'green' : 'neutral');
   return `<div class="app-shell ${collapsed ? 'sidebar-collapsed ' : ''}${ui.view === 'flow' && !ui.clone && !ui.loading ? 'is-studio' : ui.view === 'catalogue' && !ui.loading ? 'is-catalogue' : ui.view === 'activity' && !ui.loading ? 'is-analytics' : ui.view === 'configuration' && !ui.loading ? 'is-configuration' : ['compare', 'copy'].includes(ui.view) && !ui.loading ? 'is-comparison' : ''}"><aside class="sidebar"><a href="#" class="brand" data-action="nav" data-view="catalogue"><img src="./src/favicon.svg" alt="Orange"><strong>Orange<br>Business</strong></a><div class="studio-name">WOLF Core Studio <span>Voix & Messaging</span></div><div class="nav-label">PARCOURS</div><nav>${[
     ['catalogue', 'phone'],
     ['references', 'layers'],
@@ -982,7 +989,7 @@ function shell(body) {
     )
     .join(
       '',
-    )}</nav><div class="sidebar-bottom"><div class="sidebar-context"><span class="status-dot"></span> Voix &amp; Messaging<div>Tables WOLF</div></div><button class="nav-item ${ui.view === 'settings' ? 'active' : ''}" data-action="nav" data-view="settings" aria-label="Connexion" title="Connexion">${icon('link')}<span>Connexion</span></button><button class="nav-item ${ui.view === 'diagnostic' ? 'active' : ''}" data-action="nav" data-view="diagnostic" aria-label="Diagnostic technique" title="Diagnostic technique">${icon('code')}<span>Diagnostic technique</span></button><button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}" title="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}">${icon('chevron')}<span>Réduire le menu</span></button></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb">WOLF Core Studio ${icon('chevron')}<strong>${viewNames[ui.view]}</strong></div><div class="top-actions">${tag(ui.source, getAccessToken() ? 'green' : 'neutral')}<span class="avatar" title="${esc(ui.identity?.userName || 'Orange Business')}">${esc(
+    )}</nav><div class="sidebar-bottom"><div class="sidebar-context"><span class="status-dot"></span> Voix &amp; Messaging<div>Tables WOLF</div></div><button class="nav-item ${ui.view === 'settings' ? 'active' : ''}" data-action="nav" data-view="settings" aria-label="Connexion" title="Connexion">${icon('link')}<span>Connexion</span></button><button class="nav-item ${ui.view === 'diagnostic' ? 'active' : ''}" data-action="nav" data-view="diagnostic" aria-label="Diagnostic technique" title="Diagnostic technique">${icon('code')}<span>Diagnostic technique</span></button><button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}" title="${collapsed ? 'Déployer le menu' : 'Réduire le menu'}">${icon('chevron')}<span>Réduire le menu</span></button></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb">WOLF Core Studio ${icon('chevron')}<strong>${viewNames[ui.view]}</strong></div><div class="top-actions">${sourceStatus}<span class="avatar" title="${esc(ui.identity?.userName || 'Orange Business')}">${esc(
     ui.identity?.userName
       ?.split(/\s+/)
       .map((part) => part[0])
@@ -2046,13 +2053,20 @@ function createdViews() {
 }
 function settingsView() {
   const config = getAuthConfig();
+  const connected = Boolean(getAccessToken()),
+    accessDenied = connected && ui.sourceAccessDenied;
+  const status = accessDenied
+    ? tag('Accès aux tables refusé', 'amber')
+    : connected
+      ? tag('Connecté', 'green')
+      : tag('À connecter', 'neutral');
   return (
     head(
       'SOURCE DES DONNÉES',
       'Connexion à Genesys',
       'Chargement des parcours Voix et Messaging depuis Genesys Cloud ou depuis un export local.',
     ) +
-    `<section class="settings-panel"><div class="connection-state">${icon('link')}<div><h2>Genesys Cloud · Dublin</h2><p>${getAccessToken() ? 'Compte Genesys connecté.' : 'Connexion avec un compte Genesys autorisé à lire les Data Tables WOLF.'}</p></div>${tag(getAccessToken() ? 'Connecté' : 'À connecter', getAccessToken() ? 'green' : 'neutral')}</div>${ui.reloadConfirm ? notice(`Actualiser remplacera vos brouillons, vos saisies en cours et vos choix de comparaison par les parcours relus dans Genesys. ${btn('Conserver mon travail', 'refresh-cancel', 'secondary small')} ${btn('Actualiser et remplacer', 'refresh-confirm', 'small')}`, 'warning') : ''}<div class="page-actions">${getAccessToken() ? btn('Actualiser les parcours', 'refresh', 'primary') + btn('Déconnecter cette application', 'logout', 'quiet') : btn('Se connecter avec Genesys', 'login', 'primary')}</div><details class="details"><summary>Configuration de la connexion</summary><div class="field-grid"><div class="field span2"><label for="client-id">Identifiant public de l’application</label><input id="client-id" value="${esc(config.clientId)}"></div><div class="field span2"><label for="redirect-uri">Adresse de retour</label><input id="redirect-uri" value="${esc(config.redirectUri)}"></div></div><p class="helper">Région Dublin · accès selon les autorisations du compte Genesys</p></details></section><section class="settings-panel"><h2>Export local</h2><p>Chargement d’un export JSON ou CSV des tables WOLF Voix ou Messaging, pour consulter ses parcours sans connexion.</p><div class="field"><label for="source-files">Fichiers JSON ou CSV</label><input type="file" id="source-files" accept=".json,.csv" multiple></div><details class="details"><summary>Options d’import CSV</summary><div class="field"><label for="source-table">Nom de la table pour un CSV</label><input id="source-table" placeholder="Nom exact de la table exportée"></div></details>${hasLocalWork() ? notice('Charger une autre source remplacera les adaptations, saisies et choix de cette session.', 'warning') : ''}${btn('Ouvrir les parcours de l’export', 'import', 'secondary')}</section>`
+    `<section class="settings-panel"><div class="connection-state">${icon('link')}<div><h2>Genesys Cloud · Dublin</h2><p>${accessDenied ? 'Session OAuth active. Genesys refuse la lecture des Data Tables.' : connected ? 'Compte Genesys connecté.' : 'Connexion avec un compte Genesys autorisé à lire les Data Tables WOLF.'}</p></div>${status}</div>${ui.reloadConfirm ? notice(`Actualiser remplacera vos brouillons, vos saisies en cours et vos choix de comparaison par les parcours relus dans Genesys. ${btn('Conserver mon travail', 'refresh-cancel', 'secondary small')} ${btn('Actualiser et remplacer', 'refresh-confirm', 'small')}`, 'warning') : ''}<div class="page-actions">${connected ? btn('Actualiser les parcours', 'refresh', 'primary') + btn('Déconnecter cette application', 'logout', 'quiet') : btn('Se connecter avec Genesys', 'login', 'primary')}</div><details class="details"><summary>Configuration de la connexion</summary><div class="field-grid"><div class="field span2"><label for="client-id">Identifiant public de l’application</label><input id="client-id" value="${esc(config.clientId)}"></div><div class="field span2"><label for="redirect-uri">Adresse de retour</label><input id="redirect-uri" value="${esc(config.redirectUri)}"></div></div><p class="helper">Région Dublin · accès selon les autorisations du compte Genesys</p></details></section><section class="settings-panel"><h2>Export local</h2><p>Chargement d’un export JSON ou CSV des tables WOLF Voix ou Messaging, pour consulter ses parcours sans connexion.</p><div class="field"><label for="source-files">Fichiers JSON ou CSV</label><input type="file" id="source-files" accept=".json,.csv" multiple></div><details class="details"><summary>Options d’import CSV</summary><div class="field"><label for="source-table">Nom de la table pour un CSV</label><input id="source-table" placeholder="Nom exact de la table exportée"></div></details>${hasLocalWork() ? notice('Charger une autre source remplacera les adaptations, saisies et choix de cette session.', 'warning') : ''}${btn('Ouvrir les parcours de l’export', 'import', 'secondary')}</section>`
   );
 }
 function configurationPage() {
@@ -2490,6 +2504,7 @@ async function refresh(force = false) {
     if (!currentLoad()) throw Object.assign(Error('Chargement remplacé.'), { name: 'AbortError' });
   };
   ui.loading = true;
+  ui.sourceAccessDenied = false;
   ui.sourceLoading = { loaded: 0, total: 0, error: '' };
   ui.progress = 'Lecture des entrées et des Core Models…';
   render();
@@ -2578,6 +2593,7 @@ async function refresh(force = false) {
     ui.audit.unshift({ message: 'Parcours chargés depuis Genesys', at: new Date().toISOString() });
   } catch (error) {
     if (!currentLoad()) return;
+    ui.sourceAccessDenied = error.status === 403;
     if (!catalogueVisible) {
       ui.sourceLoading = null;
       throw error;

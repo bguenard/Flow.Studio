@@ -171,7 +171,7 @@ test('403 stops without retries and does not disclose API response or token', as
     }),
     (error) =>
       error.status === 403 &&
-      /scopes OAuth/.test(error.message) &&
+      /HTTP 403.*Liste des Data Tables.*scopes OAuth/.test(error.message) &&
       !error.message.includes('hidden-token'),
   );
   assert.equal(calls, 1);
@@ -406,7 +406,7 @@ test('background failure rejects without reporting a complete snapshot', async (
         return ok({ entities: [{ key: '123' }], pageCount: 1, pageNumber: 1 });
       }),
     }),
-    { status: 403 },
+    { status: 403, message: /Lecture des lignes de « W_MENU_v5 »/ },
   );
   assert.equal(partial.source.partial, true);
   assert.equal(
